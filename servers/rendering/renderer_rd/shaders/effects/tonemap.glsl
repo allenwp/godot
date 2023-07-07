@@ -260,6 +260,27 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR, always o
 	// Ensure color values passed to tonemappers are positive.
 	// They can be negative in the case of negative lights, which leads to undesired behavior.
 	if (params.tonemapper == TONEMAPPER_LINEAR) {
+		
+		// Clamp from 0 to 1 without changing hue of color
+		// Only workes with "Mix" or "Replace" glow modes because other modes are applied to the
+		// base scene after it has already been tone mapped.
+		// Doesn't work as well on mobile because the max value of a color component is limited
+		if (color.r > 1.0 || color.g > 1.0 || color.b > 1.0)
+		{
+			if (color.r > color.g && color.r > color.b)
+			{
+				color = color / color.r;
+			}
+			else if (color.g > color.r && color.g > color.b)
+			{
+				color = color / color.g;
+			}
+			else
+			{
+				color = color / color.b;
+			}
+		}
+
 		return color;
 	} else if (params.tonemapper == TONEMAPPER_REINHARD) {
 		return tonemap_reinhard(max(vec3(0.0f), color), white);
