@@ -992,8 +992,66 @@ vec3 tonemap_aces(vec3 color, float white) {
 	return color_tonemapped / white_tonemapped;
 }
 
+vec3 convertRGB2XYZ(vec3 _rgb)
+{
+	// Reference:
+	// RGB/XYZ Matrices
+	// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+	vec3 xyz;
+	xyz.x = dot(vec3(0.4124564, 0.3575761, 0.1804375), _rgb);
+	xyz.y = dot(vec3(0.2126729, 0.7151522, 0.0721750), _rgb);
+	xyz.z = dot(vec3(0.0193339, 0.1191920, 0.9503041), _rgb);
+	return xyz;
+}
+
+vec3 convertXYZ2RGB(vec3 _xyz)
+{
+	vec3 rgb;
+	rgb.x = dot(vec3( 3.2404542, -1.5371385, -0.4985314), _xyz);
+	rgb.y = dot(vec3(-0.9692660,  1.8760108,  0.0415560), _xyz);
+	rgb.z = dot(vec3( 0.0556434, -0.2040259,  1.0572252), _xyz);
+	return rgb;
+}
+
 vec3 tonemap_reinhard(vec3 color, float white) {
-	return (white * color + color) / (color * white + white);
+	float srcLum = convertRGB2XYZ(color).y;
+	if (srcLum > 0.0)
+	{
+		float dstLum = (white * srcLum + srcLum) / (srcLum * white + white);
+		color = color * (dstLum / srcLum);
+	}
+
+	float distance = 0.0;
+	
+	// Clamp from 0 to 1 without changing hue of color
+	// Only workes with "Mix" or "Replace" glow modes because other modes are applied to the
+	// base scene after it has already been tone mapped.
+	// Doesn't work as well on mobile because the max value of a color component is limited
+	if (color.r > 1.0 || color.g > 1.0 || color.b > 1.0)
+	{
+		if (color.r > color.g && color.r > color.b)
+		{
+			distance = color.r - 1.0;
+			color = color / color.r;
+		}
+		else if (color.g > color.r && color.g > color.b)
+		{
+			distance = color.g - 1.0;
+			color = color / color.g;
+		}
+		else
+		{
+			distance = color.b - 1.0;
+			color = color / color.b;
+		}
+	}
+	
+	vec3 hsl = linear_srgb_to_okhsl(color);
+	hsl.z += distance / 10.0; // divided by an arbitrary number for this rough prototype
+	hsl.z = min(hsl.z, 1.0);
+	color = okhsl_to_linear_srgb(hsl);
+
+	return color;
 }
 
 vec3 linear_to_srgb(vec3 color) {
