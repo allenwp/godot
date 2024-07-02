@@ -797,10 +797,6 @@ String EditorExportPlatform::_export_customize(const String &p_path, LocalVector
 		if (!customize_scenes_plugins.is_empty()) {
 			for (Ref<EditorExportPlugin> &plugin : customize_scenes_plugins) {
 				Node *customized = plugin->_customize_scene(node, p_path);
-				if (plugin->skipped) {
-					plugin->_clear();
-					return String();
-				}
 				if (customized != nullptr) {
 					node = customized;
 					modified = true;
@@ -834,10 +830,6 @@ String EditorExportPlatform::_export_customize(const String &p_path, LocalVector
 		if (!customize_resources_plugins.is_empty()) {
 			for (Ref<EditorExportPlugin> &plugin : customize_resources_plugins) {
 				Ref<Resource> new_res = plugin->_customize_resource(res, p_path);
-				if (plugin->skipped) {
-					plugin->_clear();
-					return String();
-				}
 				if (new_res.is_valid()) {
 					modified = true;
 					if (new_res != res) {
@@ -1139,14 +1131,52 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 		String path = E;
 		String type = ResourceLoader::get_resource_type(path);
 
+		bool do_export = true;
+		for (int i = 0; i < export_plugins.size(); i++) {
+			if (GDVIRTUAL_IS_OVERRIDDEN_PTR(export_plugins[i], _export_file)) {
+				export_plugins.write[i]->_export_file_script(path, type, features_psa);
+			} else {
+				export_plugins.write[i]->_export_file(path, type, features);
+			}
+			if (p_so_func) {
+				for (int j = 0; j < export_plugins[i]->shared_objects.size(); j++) {
+					err = p_so_func(p_udata, export_plugins[i]->shared_objects[j]);
+					if (err != OK) {
+						return err;
+					}
+				}
+			}
+
+			for (int j = 0; j < export_plugins[i]->extra_files.size(); j++) {
+				err = p_func(p_udata, export_plugins[i]->extra_files[j].path, export_plugins[i]->extra_files[j].data, idx, total, enc_in_filters, enc_ex_filters, key);
+				if (err != OK) {
+					return err;
+				}
+				if (export_plugins[i]->extra_files[j].remap) {
+					do_export = false; //if remap, do not
+					path_remaps.push_back(path);
+					path_remaps.push_back(export_plugins[i]->extra_files[j].path);
+				}
+			}
+
+			if (export_plugins[i]->skipped) {
+				do_export = false;
+			}
+			export_plugins.write[i]->_clear();
+
+			if (!do_export) {
+				break; //apologies, not exporting
+			}
+		}
+
 		if (FileAccess::exists(path + ".import")) {
+			if (!do_export) {
+				continue; // Skipped from plugin.
+			}
+
 			// Before doing this, try to see if it can be customized.
 
 			String export_path = _export_customize(path, customize_resources_plugins, customize_scenes_plugins, export_cache, export_base_path, false);
-			if (export_path.is_empty()) {
-				// Skipped from plugin.
-				continue;
-			}
 
 			if (export_path != path) {
 				// It was actually customized.
@@ -1284,43 +1314,6 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 		} else {
 			// Customize.
 
-			bool do_export = true;
-			for (int i = 0; i < export_plugins.size(); i++) {
-				if (GDVIRTUAL_IS_OVERRIDDEN_PTR(export_plugins[i], _export_file)) {
-					export_plugins.write[i]->_export_file_script(path, type, features_psa);
-				} else {
-					export_plugins.write[i]->_export_file(path, type, features);
-				}
-				if (p_so_func) {
-					for (int j = 0; j < export_plugins[i]->shared_objects.size(); j++) {
-						err = p_so_func(p_udata, export_plugins[i]->shared_objects[j]);
-						if (err != OK) {
-							return err;
-						}
-					}
-				}
-
-				for (int j = 0; j < export_plugins[i]->extra_files.size(); j++) {
-					err = p_func(p_udata, export_plugins[i]->extra_files[j].path, export_plugins[i]->extra_files[j].data, idx, total, enc_in_filters, enc_ex_filters, key);
-					if (err != OK) {
-						return err;
-					}
-					if (export_plugins[i]->extra_files[j].remap) {
-						do_export = false; //if remap, do not
-						path_remaps.push_back(path);
-						path_remaps.push_back(export_plugins[i]->extra_files[j].path);
-					}
-				}
-
-				if (export_plugins[i]->skipped) {
-					do_export = false;
-				}
-				export_plugins.write[i]->_clear();
-
-				if (!do_export) {
-					break; //apologies, not exporting
-				}
-			}
 			//just store it as it comes
 			if (do_export) {
 				// Customization only happens if plugins did not take care of it before
