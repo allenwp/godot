@@ -1134,6 +1134,24 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 		String path = E;
 		String type = ResourceLoader::get_resource_type(path);
 
+		bool has_import_file = FileAccess::exists(path + ".import");
+		Ref<ConfigFile> config;
+		if (has_import_file) {
+			config.instantiate();
+			err = config->load(path + ".import");
+			if (err != OK) {
+				ERR_PRINT("Could not parse: '" + path + "', not exported.");
+				continue;
+			}
+
+			String importer_type = config->get_value("remap", "importer");
+
+			if (importer_type == "skip") {
+				// Skip file.
+				continue;
+			}
+		}
+
 		bool do_export = true;
 		for (int i = 0; i < export_plugins.size(); i++) {
 			if (GDVIRTUAL_IS_OVERRIDDEN_PTR(export_plugins[i], _export_file)) {
@@ -1175,22 +1193,28 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 			continue;
 		}
 
-		if (FileAccess::exists(path + ".import")) {
-			// Before doing this, try to see if it can be customized.
+		if (has_import_file) {
+			String importer_type = config->get_value("remap", "importer");
 
+			if (importer_type == "keep") {
+				// Just keep file as-is.
+				Vector<uint8_t> array = FileAccess::get_file_as_bytes(path);
+				err = p_func(p_udata, path, array, idx, total, enc_in_filters, enc_ex_filters, key);
+
+				if (err != OK) {
+					return err;
+				}
+
+				continue;
+			}
+
+			// Before doing this, try to see if it can be customized.
 			String export_path = _export_customize(path, customize_resources_plugins, customize_scenes_plugins, export_cache, export_base_path, false);
 
 			if (export_path != path) {
 				// It was actually customized.
 				// Since the original file is likely not recognized, just use the import system.
 
-				Ref<ConfigFile> config;
-				config.instantiate();
-				err = config->load(path + ".import");
-				if (err != OK) {
-					ERR_PRINT("Could not parse: '" + path + "', not exported.");
-					continue;
-				}
 				config->set_value("remap", "type", ResourceLoader::get_resource_type(export_path));
 
 				// Erase all Paths.
@@ -1226,33 +1250,6 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 				}
 			} else {
 				// File is imported and not customized, replace by what it imports.
-				Ref<ConfigFile> config;
-				config.instantiate();
-				err = config->load(path + ".import");
-				if (err != OK) {
-					ERR_PRINT("Could not parse: '" + path + "', not exported.");
-					continue;
-				}
-
-				String importer_type = config->get_value("remap", "importer");
-
-				if (importer_type == "skip") {
-					// Skip file.
-					continue;
-				}
-
-				if (importer_type == "keep") {
-					// Just keep file as-is.
-					Vector<uint8_t> array = FileAccess::get_file_as_bytes(path);
-					err = p_func(p_udata, path, array, idx, total, enc_in_filters, enc_ex_filters, key);
-
-					if (err != OK) {
-						return err;
-					}
-
-					continue;
-				}
-
 				List<String> remaps;
 				config->get_section_keys("remap", &remaps);
 
