@@ -1174,7 +1174,7 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 					return err;
 				}
 				if (export_plugins[i]->extra_files[j].remap) {
-					do_export = false; // if remap, do not
+					do_export = false; // If remap, do not.
 					path_remaps.push_back(path);
 					path_remaps.push_back(export_plugins[i]->extra_files[j].path);
 				}
@@ -1311,14 +1311,14 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 			}
 
 		} else {
-			//just store it as it comes
+			// Just store it as it comes.
 
-			// Customization only happens if plugins did not take care of it before
+			// Customization only happens if plugins did not take care of it before.
 			bool force_binary = convert_text_to_binary && (path.get_extension().to_lower() == "tres" || path.get_extension().to_lower() == "tscn");
 			String export_path = _export_customize(path, customize_resources_plugins, customize_scenes_plugins, export_cache, export_base_path, force_binary);
 
 			if (export_path != path) {
-				// Add a remap entry
+				// Add a remap entry.
 				path_remaps.push_back(path);
 				path_remaps.push_back(export_path);
 			}
