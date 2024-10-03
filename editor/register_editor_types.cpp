@@ -45,6 +45,7 @@
 #include "editor/editor_string_names.h"
 #include "editor/editor_translation_parser.h"
 #include "editor/editor_undo_redo_manager.h"
+#include "editor/export/editor_export.h"
 #include "editor/export/editor_export_platform.h"
 #include "editor/export/editor_export_platform_extension.h"
 #include "editor/export/editor_export_platform_pc.h"
@@ -161,6 +162,7 @@ void register_editor_types() {
 	GDREGISTER_ABSTRACT_CLASS(ScriptEditorBase);
 	GDREGISTER_CLASS(EditorSyntaxHighlighter);
 	GDREGISTER_ABSTRACT_CLASS(EditorInterface);
+	GDREGISTER_ABSTRACT_CLASS(EditorExport);
 	GDREGISTER_CLASS(EditorExportPlugin);
 	GDREGISTER_ABSTRACT_CLASS(EditorExportPlatform);
 	GDREGISTER_ABSTRACT_CLASS(EditorExportPlatformPC);
@@ -294,6 +296,8 @@ void register_editor_types() {
 	Engine::Singleton ei_singleton = Engine::Singleton("EditorInterface", EditorInterface::get_singleton());
 	ei_singleton.editor_only = true;
 	Engine::get_singleton()->add_singleton(ei_singleton);
+
+	// EditorExport adds its singleton when it has been created and configured, rather than here.
 
 	// Required as GDExtensions can register docs at init time way before this
 	// class is actually instantiated.

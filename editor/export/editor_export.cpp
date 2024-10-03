@@ -32,6 +32,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/config_file.h"
+#include "core/object/script_language.h"
 #include "editor/editor_settings.h"
 
 EditorExport *EditorExport::singleton = nullptr;
@@ -120,8 +121,16 @@ void EditorExport::emit_presets_runnable_changed() {
 }
 
 void EditorExport::_bind_methods() {
+	_export_presets_updated = StringName("export_presets_updated", true);
+	_export_presets_runnable_updated = StringName("export_presets_runnable_updated", true);
+
 	ADD_SIGNAL(MethodInfo(_export_presets_updated));
 	ADD_SIGNAL(MethodInfo(_export_presets_runnable_updated));
+
+	ClassDB::bind_method(D_METHOD("get_export_platform_count"), &EditorExport::get_export_platform_count);
+	ClassDB::bind_method(D_METHOD("get_export_platform", "idx"), &EditorExport::get_export_platform);
+	ClassDB::bind_method(D_METHOD("get_export_preset_count"), &EditorExport::get_export_preset_count);
+	ClassDB::bind_method(D_METHOD("get_export_preset", "idx"), &EditorExport::get_export_preset);
 }
 
 void EditorExport::add_export_platform(const Ref<EditorExportPlatform> &p_platform) {
@@ -139,7 +148,7 @@ void EditorExport::remove_export_platform(const Ref<EditorExportPlatform> &p_pla
 	should_reload_presets = true;
 }
 
-int EditorExport::get_export_platform_count() {
+int EditorExport::get_export_platform_count() const {
 	return export_platforms.size();
 }
 
@@ -193,6 +202,15 @@ void EditorExport::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
 			load_config();
+
+			Engine::Singleton ee_singleton = Engine::Singleton("EditorExport", this);
+			ee_singleton.editor_only = true;
+			Engine::get_singleton()->add_singleton(ee_singleton);
+
+			// Scripts must be reloaded to add the new EditorExport singleton
+			for (int i = 0; i < ScriptServer::get_language_count(); i++) {
+				ScriptServer::get_language(i)->reload_all_scripts();
+			}
 		} break;
 
 		case NOTIFICATION_PROCESS: {
@@ -203,6 +221,7 @@ void EditorExport::_notification(int p_what) {
 			for (int i = 0; i < export_platforms.size(); i++) {
 				export_platforms.write[i]->cleanup();
 			}
+			Engine::get_singleton()->remove_singleton("EditorExport");
 		} break;
 
 		case EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED: {
@@ -441,9 +460,6 @@ EditorExport::EditorExport() {
 	save_timer->set_wait_time(0.8);
 	save_timer->set_one_shot(true);
 	save_timer->connect("timeout", callable_mp(this, &EditorExport::_save));
-
-	_export_presets_updated = StringName("export_presets_updated", true);
-	_export_presets_runnable_updated = StringName("export_presets_runnable_updated", true);
 
 	singleton = this;
 	set_process(true);
