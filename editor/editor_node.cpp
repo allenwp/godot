@@ -6954,8 +6954,9 @@ EditorNode::EditorNode() {
 	EditorFileDialog::register_func = _editor_file_dialog_register;
 	EditorFileDialog::unregister_func = _editor_file_dialog_unregister;
 
-	editor_export = memnew(EditorExport);
+	editor_export = EditorExport::get_unconfigured_singleton();
 	add_child(editor_export);
+	editor_export->set_configured();
 
 	// Exporters might need the theme.
 	EditorThemeManager::initialize();
