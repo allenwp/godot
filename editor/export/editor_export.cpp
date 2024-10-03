@@ -120,8 +120,16 @@ void EditorExport::emit_presets_runnable_changed() {
 }
 
 void EditorExport::_bind_methods() {
+	_export_presets_updated = StringName("export_presets_updated", true);
+	_export_presets_runnable_updated = StringName("export_presets_runnable_updated", true);
+
 	ADD_SIGNAL(MethodInfo(_export_presets_updated));
 	ADD_SIGNAL(MethodInfo(_export_presets_runnable_updated));
+
+	ClassDB::bind_method(D_METHOD("get_export_platform_count"), &EditorExport::get_export_platform_count);
+	ClassDB::bind_method(D_METHOD("get_export_platform", "idx"), &EditorExport::get_export_platform);
+	ClassDB::bind_method(D_METHOD("get_export_preset_count"), &EditorExport::get_export_preset_count);
+	ClassDB::bind_method(D_METHOD("get_export_preset", "idx"), &EditorExport::get_export_preset);
 }
 
 void EditorExport::add_export_platform(const Ref<EditorExportPlatform> &p_platform) {
@@ -139,7 +147,7 @@ void EditorExport::remove_export_platform(const Ref<EditorExportPlatform> &p_pla
 	should_reload_presets = true;
 }
 
-int EditorExport::get_export_platform_count() {
+int EditorExport::get_export_platform_count() const {
 	return export_platforms.size();
 }
 
@@ -435,6 +443,15 @@ void EditorExport::connect_presets_runnable_updated(const Callable &p_target) {
 	connect(_export_presets_runnable_updated, p_target);
 }
 
+void EditorExport::create() {
+	memnew(EditorExport);
+}
+
+void EditorExport::free() {
+	ERR_FAIL_NULL(singleton);
+	memdelete(singleton);
+}
+
 EditorExport::EditorExport() {
 	save_timer = memnew(Timer);
 	add_child(save_timer);
@@ -442,12 +459,11 @@ EditorExport::EditorExport() {
 	save_timer->set_one_shot(true);
 	save_timer->connect("timeout", callable_mp(this, &EditorExport::_save));
 
-	_export_presets_updated = StringName("export_presets_updated", true);
-	_export_presets_runnable_updated = StringName("export_presets_runnable_updated", true);
-
 	singleton = this;
 	set_process(true);
 }
 
 EditorExport::~EditorExport() {
+	save_timer->stop();
+	memdelete(save_timer);
 }

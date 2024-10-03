@@ -44,6 +44,7 @@ class EditorExport : public Node {
 	static inline StringName _export_presets_updated;
 	static inline StringName _export_presets_runnable_updated;
 
+	bool configured = false;
 	Timer *save_timer = nullptr;
 	bool block_save = false;
 	bool should_update_presets = false;
@@ -62,10 +63,25 @@ protected:
 	static void _bind_methods();
 
 public:
-	static EditorExport *get_singleton() { return singleton; }
+	static EditorExport *get_singleton() {
+		if (unlikely(singleton != nullptr && !singleton->configured)) {
+			return nullptr;
+		} else {
+			return singleton;
+		}
+	}
+
+	static EditorExport *get_unconfigured_singleton() {
+		if (singleton == nullptr) {
+			create();
+		} else {
+			ERR_FAIL_COND_V_MSG(singleton->configured, nullptr, "EditorExport singleton has already been configured.");
+		}
+		return singleton;
+	}
 
 	void add_export_platform(const Ref<EditorExportPlatform> &p_platform);
-	int get_export_platform_count();
+	int get_export_platform_count() const;
 	Ref<EditorExportPlatform> get_export_platform(int p_idx);
 	void remove_export_platform(const Ref<EditorExportPlatform> &p_platform);
 
@@ -82,6 +98,11 @@ public:
 	void update_export_presets();
 	bool poll_export_platforms();
 	void connect_presets_runnable_updated(const Callable &p_target);
+
+	void set_configured() { configured = true; }
+
+	static void create();
+	static void free();
 
 	EditorExport();
 	~EditorExport();
