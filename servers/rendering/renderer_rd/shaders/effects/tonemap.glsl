@@ -264,7 +264,9 @@ vec3 tonemap_aces(vec3 color, float white) {
 	return color_tonemapped / white_tonemapped;
 }
 
+// 6th order polynomial approximation of the AgX LUT sigmoid curve
 // Mean error^2: 3.6705141e-06
+// Taken from: https://iolite-engine.com/blog_posts/minimal_agx_implementation
 vec3 agx_default_contrast_approx(vec3 x) {
 	vec3 x2 = x * x;
 	vec3 x4 = x2 * x2;
@@ -288,11 +290,19 @@ vec3 agx(vec3 val) {
 			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
 			0.0482516061458583, 0.101439036467562, 0.811302368396859);
 
-	const float min_ev = -12.47393;
-	const float max_ev = 4.026069;
+	// Precalculated constants taken from Filament, based on Blender's  values:
+	// https://github.com/google/filament/blob/e2da13f81734ccd6d6f9935061b771801682619e/filament/src/ToneMapper.cpp#L234
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.47393; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev = 4.026069; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
 	// Do AGX in rec2020 to match Blender.
 	val = LINEAR_SRGB_TO_LINEAR_REC2020 * val;
+
+	// No "lower guard rail" calculations because they are too expensive.
+	// Use this simplification instead to ensure non-negative input:
 	val = max(val, vec3(0.0));
 
 	// Input transform (inset).
@@ -310,22 +320,33 @@ vec3 agx(vec3 val) {
 }
 
 vec3 agx_eotf(vec3 val) {
+	// This outset matrix is identical to the one used in Blender, but the inverse
+	// calculation has been baked into it.
 	const mat3 agx_mat_out = mat3(
 			1.1271005818144368, -0.1413297634984383, -0.1413297634984383,
 			-0.1106066430966032, 1.1578237022162720, -0.1106066430966029,
 			-0.0164939387178346, -0.0164939387178343, 1.2519364065950405);
 
-	val = agx_mat_out * val;
-
-	// Convert back to linear so we can escape Rec 2020.
+	// Convert back to linear before applying outset matrix.
+	// This will also prepare for conversion away from Rec. 2020.
 	val = pow(val, vec3(2.4));
 
+	// Skip mixing pre-formation chroma angle with post formation chroma angle
+	// because this is too expensive.
+
+	// Apply final outset matrix
+	val = agx_mat_out * val;
+
+	// Direct color space conversion may result in hard clamping later on.
+	// This concession is necessary to match Blender's behavior in Rec. 2020 space
+	// while maintaining performance.
 	val = LINEAR_REC2020_TO_LINEAR_SRGB * val;
 
 	return val;
 }
 
-// Adapted from https://iolite-engine.com/blog_posts/minimal_agx_implementation
+// This is a simplification of EaryChow's Rec. 2020 AgX implementation that is used by Blender.
+// Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
 vec3 tonemap_agx(vec3 color) {
 	color = agx(color);
 	color = agx_eotf(color);
