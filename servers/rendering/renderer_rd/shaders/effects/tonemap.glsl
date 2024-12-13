@@ -274,6 +274,22 @@ vec3 agx_default_contrast_approx(vec3 x) {
 	return +15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
 }
 
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c) {
+	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
 const mat3 LINEAR_REC2020_TO_LINEAR_SRGB = mat3(
 		vec3(1.6605, -0.1246, -0.0182),
 		vec3(-0.5876, 1.1329, -0.1006),
@@ -308,6 +324,9 @@ vec3 agx(vec3 val) {
 	// Input transform (inset).
 	val = agx_mat * val;
 
+	// Record current chromaticity angle.
+	vec3 pre_form_hsv = rgb2hsv(val);
+
 	// Log2 space encoding.
 	val = max(val, 1e-10);
 	val = clamp(log2(val), min_ev, max_ev);
@@ -316,10 +335,6 @@ vec3 agx(vec3 val) {
 	// Apply sigmoid function approximation.
 	val = agx_default_contrast_approx(val);
 
-	return val;
-}
-
-vec3 agx_eotf(vec3 val) {
 	// This outset matrix is identical to the one used in Blender, but the inverse
 	// calculation has been baked into it.
 	const mat3 agx_mat_out = mat3(
@@ -331,8 +346,13 @@ vec3 agx_eotf(vec3 val) {
 	// This will also prepare for conversion away from Rec. 2020.
 	val = pow(val, vec3(2.4));
 
-	// Skip mixing pre-formation chroma angle with post formation chroma angle
-	// because this is too expensive.
+	// Record post-sigmoid chroma angle.
+	val = rgb2hsv(val);
+
+	// Mix pre-formation chroma angle with post formation chroma angle.
+	val.x = mix(pre_form_hsv.x, val.x, 0.4);
+
+	val = hsv2rgb(val);
 
 	// Apply final outset matrix
 	val = agx_mat_out * val;
@@ -349,7 +369,6 @@ vec3 agx_eotf(vec3 val) {
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
 vec3 tonemap_agx(vec3 color) {
 	color = agx(color);
-	color = agx_eotf(color);
 	return color;
 }
 
