@@ -264,6 +264,131 @@ vec3 tonemap_aces(vec3 color, float white) {
 	return color_tonemapped / white_tonemapped;
 }
 
+// https://iolite-engine.com/blog_posts/minimal_agx_implementation
+// Mean error^2: 3.6705141e-06
+vec3 agx_troy_default_contrast_approx(vec3 x) {
+	vec3 x2 = x * x;
+	vec3 x4 = x2 * x2;
+
+	return +15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
+}
+
+// Polynomial approximation of EaryChow's AgX sigmoid curve.
+// Generated with http://polynomialregression.drque.net/online.php
+// Input curve: Generated using python sigmoid with EaryChow configuration and 64 steps between -0.5 and 1.5
+// 18 coefficients, forced first coefficient to 0.
+// Error: R2 = 0.99997669177971
+// In Blender's implementation, numbers could go a little bit over 1.0, so it's best to ensure
+// this behaves the same as Blender's with values up to 1.1. Input values cannot be lower than 0.
+// allenwp TODO: try a few different approaches to generating this to find the closest fit at the lowest order.
+// This is intentionally a high order during development to rule out differences between Blender and this implementation.
+vec3 agx_blender_default_contrast_approx(vec3 x) {
+	vec3 x2 = x * x;
+	vec3 x4 = x2 * x2;
+	vec3 x6 = x4 * x2;
+	vec3 x8 = x6 * x2;
+	vec3 x10 = x8 * x2;
+	vec3 x12 = x10 * x2;
+	vec3 x14 = x12 * x2;
+	vec3 x16 = x14 * x2;
+	return 0.00000000000000000000 + 0.13135761694036123927 * x + 0.22441254540549348075 * x2 + 2.26507265544545285376 * x2 * x + 2.37587184902548457407 * x4 + -37.11945909545755423612 * x4 * x + -15.75732916504027676360 * x6 + 331.95420160828871204998 * x6 * x + -45.15982426280652078085 * x8 + -1397.81924632095371219715 * x8 * x + 1027.74731269267840836750 * x10 + 2523.89781842728108716667 * x10 * x + -3742.28748645515251553886 * x12 + -214.08743985366576378385 * x12 * x + 3756.71766118436582902827 * x14 + -3165.43874934247327619504 * x14 * x + 1127.44419798319680350398 * x16 + -154.08987706865711310597 * x16 * x;
+}
+
+// https://iolite-engine.com/blog_posts/minimal_agx_implementation
+vec3 tonemap_agx_troy(vec3 val) {
+	const mat3 agx_mat = mat3(
+			0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+			0.0784335999999992, 0.878468636469772, 0.0784336,
+			0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+
+	const mat3 agx_mat_inv = mat3(
+			1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+			-0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+			-0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+
+	val = max(val, vec3(0.0));
+
+	// Input transform (inset)
+	val = agx_mat * val;
+
+	// Log2 space encoding.
+	val = max(val, 1e-10);
+	val = max(log2(val), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	val = (val - min_ev) / (max_ev - min_ev);
+	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
+	// it will only be at 1.018. It cannot be lower than 0.0.
+
+	// Apply sigmoid function approximation
+	val = agx_troy_default_contrast_approx(val);
+
+	// The ordering of the inverse outset matrix and linearization was confirmed by Troy, the original creator:
+	// https://github.com/MissingDeadlines/iolite/discussions/12#discussioncomment-7182028
+	// This is a different approach than Blender's AgX.
+
+	// Inverse input transform (outset)
+	val = agx_mat_inv * val;
+
+	// sRGB IEC 61966-2-1 2.2 Exponent Reference EOTF Display
+	// NOTE: We're linearizing the output here. Comment/adjust when
+	// *not* using a sRGB render target
+	val = pow(val, vec3(2.2));
+
+	return val;
+}
+
+vec3 tonemap_agx_troy_blender_contrast(vec3 val) {
+	const mat3 agx_mat = mat3(
+			0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+			0.0784335999999992, 0.878468636469772, 0.0784336,
+			0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+
+	const mat3 agx_mat_inv = mat3(
+			1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+			-0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+			-0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+
+	val = max(val, vec3(0.0));
+
+	// Input transform (inset)
+	val = agx_mat * val;
+
+	// Log2 space encoding.
+	val = max(val, 1e-10);
+	val = max(log2(val), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	val = (val - min_ev) / (max_ev - min_ev);
+	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
+	// it will only be at 1.018. It cannot be lower than 0.0.
+
+	// Apply sigmoid function approximation
+	val = agx_blender_default_contrast_approx(val);
+
+	// The ordering of the inverse outset matrix and linearization was confirmed by Troy, the original creator:
+	// https://github.com/MissingDeadlines/iolite/discussions/12#discussioncomment-7182028
+	// This is a different approach than Blender's AgX.
+
+	// Inverse input transform (outset)
+	val = agx_mat_inv * val;
+
+	// sRGB IEC 61966-2-1 2.2 Exponent Reference EOTF Display
+	// NOTE: We're linearizing the output here. Comment/adjust when
+	// *not* using a sRGB render target
+	val = pow(val, vec3(2.2));
+
+	return val;
+}
+
 vec3 rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
 	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
@@ -289,27 +414,6 @@ const mat3 LINEAR_SRGB_TO_LINEAR_REC2020 = mat3(
 		vec3(0.6274, 0.0691, 0.0164),
 		vec3(0.3293, 0.9195, 0.0880),
 		vec3(0.0433, 0.0113, 0.8956));
-
-// Polynomial approximation of EaryChow's AgX sigmoid curve.
-// Generated with http://polynomialregression.drque.net/online.php
-// Input curve: Generated using python sigmoid with EaryChow configuration and 64 steps between -0.5 and 1.5
-// 18 coefficients, forced first coefficient to 0.
-// Error: R2 = 0.99997669177971
-// In Blender's implementation, numbers could go a little bit over 1.0, so it's best to ensure
-// this behaves the same as Blender's with values up to 1.1. Input values cannot be lower than 0.
-// allenwp TODO: try a few different approaches to generating this to find the closest fit at the lowest order.
-// This is intentionally a high order during development to rule out differences between Blender and this implementation.
-vec3 agx_blender_default_contrast_approx(vec3 x) {
-	vec3 x2 = x * x;
-	vec3 x4 = x2 * x2;
-	vec3 x6 = x4 * x2;
-	vec3 x8 = x6 * x2;
-	vec3 x10 = x8 * x2;
-	vec3 x12 = x10 * x2;
-	vec3 x14 = x12 * x2;
-	vec3 x16 = x14 * x2;
-	return 0.00000000000000000000 + 0.13135761694036123927 * x + 0.22441254540549348075 * x2 + 2.26507265544545285376 * x2 * x + 2.37587184902548457407 * x4 + -37.11945909545755423612 * x4 * x + -15.75732916504027676360 * x6 + 331.95420160828871204998 * x6 * x + -45.15982426280652078085 * x8 + -1397.81924632095371219715 * x8 * x + 1027.74731269267840836750 * x10 + 2523.89781842728108716667 * x10 * x + -3742.28748645515251553886 * x12 + -214.08743985366576378385 * x12 * x + 3756.71766118436582902827 * x14 + -3165.43874934247327619504 * x14 * x + 1127.44419798319680350398 * x16 + -154.08987706865711310597 * x16 * x;
-}
 
 // Currently unused because Godot will rarely provide a useful negative input value
 //vec3 compensate_low_side_bt2020(vec3 rgb) {
@@ -460,6 +564,142 @@ vec3 tonemap_agx(vec3 color) {
 	return color;
 }
 
+vec3 tonemap_agx_simple_guardrail(vec3 color) {
+	// TODO: Approximate or simplify the compensate_low_side_bt709 function
+	return vec3(0.0, 0.0, 0.0);
+}
+
+vec3 tonemap_agx_no_guardrail(vec3 color) {
+	const mat3 agx_inset_matrix = mat3(
+			0.856627153315983, 0.137318972929847, 0.11189821299995,
+			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
+			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+
+	// This outset matrix is identical to the one used in Blender, but the inverse
+	// calculation has been baked into it.
+	const mat3 agx_outset_matrix = mat3(
+			1.1271005818144368, -0.1413297634984383, -0.1413297634984383,
+			-0.1106066430966032, 1.1578237022162720, -0.1106066430966029,
+			-0.0164939387178346, -0.0164939387178343, 1.2519364065950405);
+
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+
+	// Do AGX in rec2020 to match Blender.
+	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
+
+	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
+	// instead of performing the complex compensate_low_side_bt2020 function.
+	//compensate_low_side_bt2020(color);
+	color = max(color, vec3(0.0));
+
+	// Input transform (inset).
+	color = agx_inset_matrix * color;
+
+	// Record current chromaticity angle.
+	vec3 pre_form_hsv = rgb2hsv(color);
+
+	// Log2 space encoding.
+	color = max(color, 1e-10);
+	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	color = (color - min_ev) / (max_ev - min_ev);
+	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
+	// it will only be at 1.018. It cannot be lower than 0.0.
+
+	// Apply sigmoid function approximation.
+	color = agx_blender_default_contrast_approx(color);
+
+	// Convert back to linear before applying outset matrix.
+	// This will also prepare for conversion away from Rec. 2020.
+	color = pow(color, vec3(2.4));
+
+	// Record post-sigmoid chroma angle.
+	color = rgb2hsv(color);
+
+	// Mix pre-formation chroma angle with post formation chroma angle.
+	// Hue can wrap from 1 back to 0. This can cause incorrect chroma mixing.
+	// This never happens in the source script's LUT generation, but it can happen here,
+	// usually with very bright or very dark red-blue colors:
+	if (color.x > pre_form_hsv.x && color.x - pre_form_hsv.x > 0.5) {
+		color.x -= 1.0;
+	} else if (color.x < pre_form_hsv.x && pre_form_hsv.x - color.x > 0.5) {
+		color.x += 1.0;
+	}
+	color.x = mix(pre_form_hsv.x, color.x, 0.4);
+
+	color = hsv2rgb(color);
+
+	// Apply outset to make the result more chroma-laden
+	color = agx_outset_matrix * color;
+
+	color = LINEAR_REC2020_TO_LINEAR_SRGB * color;
+
+	// apply sRGB's lower Guard Rail to prevent hard clipping
+	//color = compensate_low_side_bt709(color);
+	color = max(color, vec3(0.0));
+
+	return color;
+}
+
+vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
+	const mat3 agx_inset_matrix = mat3(
+			0.856627153315983, 0.137318972929847, 0.11189821299995,
+			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
+			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+
+	// This outset matrix is identical to the one used in Blender, but the inverse
+	// calculation has been baked into it.
+	const mat3 agx_outset_matrix = mat3(
+			1.1271005818144368, -0.1413297634984383, -0.1413297634984383,
+			-0.1106066430966032, 1.1578237022162720, -0.1106066430966029,
+			-0.0164939387178346, -0.0164939387178343, 1.2519364065950405);
+
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+
+	// Do AGX in rec2020 to match Blender.
+	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
+
+	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
+	// instead of performing the complex compensate_low_side_bt2020 function.
+	//compensate_low_side_bt2020(color);
+	color = max(color, vec3(0.0));
+
+	// Input transform (inset).
+	color = agx_inset_matrix * color;
+
+	// Log2 space encoding.
+	color = max(color, 1e-10);
+	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	color = (color - min_ev) / (max_ev - min_ev);
+	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
+	// it will only be at 1.018. It cannot be lower than 0.0.
+
+	// Apply sigmoid function approximation.
+	color = agx_blender_default_contrast_approx(color);
+
+	// Convert back to linear before applying outset matrix.
+	// This will also prepare for conversion away from Rec. 2020.
+	color = pow(color, vec3(2.4));
+
+	// Apply outset to make the result more chroma-laden
+	color = agx_outset_matrix * color;
+
+	color = LINEAR_REC2020_TO_LINEAR_SRGB * color;
+
+	// apply sRGB's lower Guard Rail to prevent hard clipping
+	//color = compensate_low_side_bt709(color);
+	color = max(color, vec3(0.0));
+
+	return color;
+}
+
 vec3 linear_to_srgb(vec3 color) {
 	//if going to srgb, clamp from 0 to 1.
 	color = clamp(color, vec3(0.0), vec3(1.0));
@@ -471,7 +711,12 @@ vec3 linear_to_srgb(vec3 color) {
 #define TONEMAPPER_REINHARD 1
 #define TONEMAPPER_FILMIC 2
 #define TONEMAPPER_ACES 3
-#define TONEMAPPER_AGX 4
+#define TONEMAPPER_AGX_TROY 4
+#define TONEMAPPER_AGX_TROY_BLENDER_CONTRAST 5
+#define TONEMAPPER_AGX_BLENDER_REFERENCE 6
+#define TONEMAPPER_AGX_BLENDER_SIMPLE_GUARDRAIL 7
+#define TONEMAPPER_AGX_BLENDER_NO_GUARDRAIL 8
+#define TONEMAPPER_AGX_BLENDER_NO_GUARDRAIL_NO_HUE_ROTATION 9
 
 vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 	// Ensure color values passed to tonemappers are positive.
@@ -484,8 +729,18 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 		return tonemap_filmic(max(vec3(0.0f), color), white);
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
 		return tonemap_aces(max(vec3(0.0f), color), white);
-	} else { // TONEMAPPER_AGX
+	} else if (params.tonemapper == TONEMAPPER_AGX_TROY) {
+		return tonemap_agx_troy(color);
+	} else if (params.tonemapper == TONEMAPPER_AGX_TROY_BLENDER_CONTRAST) {
+		return tonemap_agx_troy_blender_contrast(color);
+	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_REFERENCE) {
 		return tonemap_agx(color);
+	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_SIMPLE_GUARDRAIL) {
+		return tonemap_agx_simple_guardrail(color);
+	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_NO_GUARDRAIL) {
+		return tonemap_agx_no_guardrail(color);
+	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_NO_GUARDRAIL_NO_HUE_ROTATION) {
+		return tonemap_agx_no_guardrail_no_hue_rotation(color);
 	}
 }
 

@@ -5270,7 +5270,31 @@
 			Use the Academy Color Encoding System tonemapper. ACES is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. ACES typically has a more contrasted output compared to [constant ENV_TONE_MAPPER_REINHARD] and [constant ENV_TONE_MAPPER_FILMIC].
 			[b]Note:[/b] This tonemapping operator is called "ACES Fitted" in Godot 3.x.
 		</constant>
-		<constant name="ENV_TONE_MAPPER_AGX" value="4" enum="EnvironmentToneMapper">
+		<constant name="ENV_TONE_MAPPER_AGX_TROY" value="4" enum="EnvironmentToneMapper">
+			Original AgX created by Troy Sobotka. Highest performance.
+			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="ENV_TONE_MAPPER_AGX_TROY_BLENDER_CONTRAST" value="5" enum="EnvironmentToneMapper">
+			Original AgX created by Troy Sobotka, but modified to use the contrast curve of Blender's AgX. Highest performance.
+			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_REFERENCE" value="6" enum="EnvironmentToneMapper">
+			Blender's AgX created by EaryChow et al. Reference implementation that is low performance and not suitable for game engines.
+			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_SIMPLE_GUARDRAIL" value="7" enum="EnvironmentToneMapper">
+			NOT YET IMPLEMENTED.
+			Blender's AgX created by EaryChow et al. This version has a simplified/approximated "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB.
+			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_NO_GUARDRAIL" value="8" enum="EnvironmentToneMapper">
+			Blender's AgX created by EaryChow et al. This version has no "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB. In place of this guardrail, a simple hard clipping is used: max(color, vec3(0.0)).
+			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_NO_GUARDRAIL_NO_HUE_ROTATION" value="9" enum="EnvironmentToneMapper">
+			Blender's AgX created by EaryChow et al. This version has no hue rotation or "lower guardrail".
+			Hue rotation prevents hue shifting towards the "notorious six". This has been entirely removed from this implementation, making this implementation only slightly slower than TONE_MAPPER_AGX_TROY.
+			The lower guardrail smoothly adjusts negative values that are created after converting to sRGB. In place of this guardrail, a simple hard clipping is used: max(color, vec3(0.0)).
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
 		<constant name="ENV_SSR_ROUGHNESS_QUALITY_DISABLED" value="0" enum="EnvironmentSSRRoughnessQuality">
