@@ -312,14 +312,14 @@ vec3 tonemap_agx_troy(vec3 val) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	val = max(val, vec3(0.0));
+	val = max(val, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
 
 	// Input transform (inset)
 	val = agx_mat * val;
 
 	// Log2 space encoding.
-	val = max(val, 1e-10);
-	val = max(log2(val), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	val = max(val, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
+	val = max(log2(val), min_ev); // No need to restrict upper value, it will end up close to 1.0
 	val = (val - min_ev) / (max_ev - min_ev);
 	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
 	// it will only be at 1.018. It cannot be lower than 0.0.
@@ -359,14 +359,14 @@ vec3 tonemap_agx_troy_blender_contrast(vec3 val) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	val = max(val, vec3(0.0));
+	val = max(val, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
 
 	// Input transform (inset)
 	val = agx_mat * val;
 
 	// Log2 space encoding.
-	val = max(val, 1e-10);
-	val = max(log2(val), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	val = max(val, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
+	val = max(log2(val), min_ev); // No need to restrict upper value, it will end up close to 1.0
 	val = (val - min_ev) / (max_ev - min_ev);
 	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
 	// it will only be at 1.018. It cannot be lower than 0.0.
@@ -522,7 +522,7 @@ vec3 tonemap_agx(vec3 color) {
 	vec3 pre_form_hsv = rgb2hsv(color);
 
 	// Log2 space encoding.
-	color = max(color, 1e-10);
+	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
 	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
 	color = (color - min_ev) / (max_ev - min_ev);
 	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
@@ -570,17 +570,17 @@ vec3 tonemap_agx_simple_guardrail(vec3 color) {
 }
 
 vec3 tonemap_agx_no_guardrail(vec3 color) {
-	const mat3 agx_inset_matrix = mat3(
-			0.856627153315983, 0.137318972929847, 0.11189821299995,
-			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
-			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
+	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
+			0.5448120800524265834, 0.1404193453648930627, 0.08881713750335756733,
+			0.3737974436026257489, 0.7541077833540264976, 0.17885975536544060785,
+			0.08138096422089395182, 0.1053967470820201806, 0.73231542718934080579);
 
-	// This outset matrix is identical to the one used in Blender, but the inverse
-	// calculation has been baked into it.
-	const mat3 agx_outset_matrix = mat3(
-			1.1271005818144368, -0.1413297634984383, -0.1413297634984383,
-			-0.1106066430966032, 1.1578237022162720, -0.1106066430966029,
-			-0.0164939387178346, -0.0164939387178343, 1.2519364065950405);
+	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
+	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
+			1.9648846919172409596, -0.29937618452442253746, -0.16440106280678278299,
+			-0.85594737466675834968, 1.3263980951083531115, -0.23819967517076844919,
+			-0.10883731725048386702, -0.02702191058393112346, 1.4025007379775505276);
 
 	// LOG2_MIN      = -10.0
 	// LOG2_MAX      =  +6.5
@@ -588,22 +588,19 @@ vec3 tonemap_agx_no_guardrail(vec3 color) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	// Do AGX in rec2020 to match Blender.
-	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
-
 	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
 	// instead of performing the complex compensate_low_side_bt2020 function.
-	//compensate_low_side_bt2020(color);
-	color = max(color, vec3(0.0));
+	// This also lets us combine the rec2020 and inset matrices.
+	color = max(color, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
 
-	// Input transform (inset).
-	color = agx_inset_matrix * color;
+	// Do AGX in rec2020 to match Blender and then apply inset matrix.
+	color = srgb_to_rec2020_agx_inset_matrix * color;
 
 	// Record current chromaticity angle.
 	vec3 pre_form_hsv = rgb2hsv(color);
 
 	// Log2 space encoding.
-	color = max(color, 1e-10);
+	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
 	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
 	color = (color - min_ev) / (max_ev - min_ev);
 	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
@@ -632,30 +629,27 @@ vec3 tonemap_agx_no_guardrail(vec3 color) {
 
 	color = hsv2rgb(color);
 
-	// Apply outset to make the result more chroma-laden
-	color = agx_outset_matrix * color;
+	// Apply outset to make the result more chroma-laden and then go back to linear sRGB
+	color = agx_outset_rec2020_to_srgb_matrix * color;
 
-	color = LINEAR_REC2020_TO_LINEAR_SRGB * color;
-
-	// apply sRGB's lower Guard Rail to prevent hard clipping
-	//color = compensate_low_side_bt709(color);
+	// Simply hard clip instead of Blender's compensate_low_side_bt709(color)
 	color = max(color, vec3(0.0));
 
 	return color;
 }
 
 vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
-	const mat3 agx_inset_matrix = mat3(
-			0.856627153315983, 0.137318972929847, 0.11189821299995,
-			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
-			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
+	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
+			0.5448120800524265834, 0.1404193453648930627, 0.08881713750335756733,
+			0.3737974436026257489, 0.7541077833540264976, 0.17885975536544060785,
+			0.08138096422089395182, 0.1053967470820201806, 0.73231542718934080579);
 
-	// This outset matrix is identical to the one used in Blender, but the inverse
-	// calculation has been baked into it.
-	const mat3 agx_outset_matrix = mat3(
-			1.1271005818144368, -0.1413297634984383, -0.1413297634984383,
-			-0.1106066430966032, 1.1578237022162720, -0.1106066430966029,
-			-0.0164939387178346, -0.0164939387178343, 1.2519364065950405);
+	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
+	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
+			1.9648846919172409596, -0.29937618452442253746, -0.16440106280678278299,
+			-0.85594737466675834968, 1.3263980951083531115, -0.23819967517076844919,
+			-0.10883731725048386702, -0.02702191058393112346, 1.4025007379775505276);
 
 	// LOG2_MIN      = -10.0
 	// LOG2_MAX      =  +6.5
@@ -663,19 +657,16 @@ vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	// Do AGX in rec2020 to match Blender.
-	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
-
 	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
 	// instead of performing the complex compensate_low_side_bt2020 function.
-	//compensate_low_side_bt2020(color);
-	color = max(color, vec3(0.0));
+	// This also lets us combine the rec2020 and inset matrices.
+	color = max(color, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
 
-	// Input transform (inset).
-	color = agx_inset_matrix * color;
+	// Do AGX in rec2020 to match Blender and then apply inset matrix.
+	color = srgb_to_rec2020_agx_inset_matrix * color;
 
 	// Log2 space encoding.
-	color = max(color, 1e-10);
+	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
 	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
 	color = (color - min_ev) / (max_ev - min_ev);
 	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
@@ -688,13 +679,10 @@ vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
 	// This will also prepare for conversion away from Rec. 2020.
 	color = pow(color, vec3(2.4));
 
-	// Apply outset to make the result more chroma-laden
-	color = agx_outset_matrix * color;
+	// Apply outset to make the result more chroma-laden and then go back to linear sRGB
+	color = agx_outset_rec2020_to_srgb_matrix * color;
 
-	color = LINEAR_REC2020_TO_LINEAR_SRGB * color;
-
-	// apply sRGB's lower Guard Rail to prevent hard clipping
-	//color = compensate_low_side_bt709(color);
+	// Simply hard clip instead of Blender's compensate_low_side_bt709(color)
 	color = max(color, vec3(0.0));
 
 	return color;
