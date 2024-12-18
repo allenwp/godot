@@ -282,7 +282,7 @@ vec3 agx_troy_default_contrast_approx(vec3 x) {
 // this behaves the same as Blender's with values up to 1.1. Input values cannot be lower than 0.
 // allenwp TODO: try a few different approaches to generating this to find the closest fit at the lowest order.
 // This is intentionally a high order during development to rule out differences between Blender and this implementation.
-vec3 agx_blender_default_contrast_approx(vec3 x) {
+vec3 agx_blender_default_contrast_ref_approx(vec3 x) {
 	vec3 x2 = x * x;
 	vec3 x4 = x2 * x2;
 	vec3 x6 = x4 * x2;
@@ -292,6 +292,27 @@ vec3 agx_blender_default_contrast_approx(vec3 x) {
 	vec3 x14 = x12 * x2;
 	vec3 x16 = x14 * x2;
 	return 0.00000000000000000000 + 0.13135761694036123927 * x + 0.22441254540549348075 * x2 + 2.26507265544545285376 * x2 * x + 2.37587184902548457407 * x4 + -37.11945909545755423612 * x4 * x + -15.75732916504027676360 * x6 + 331.95420160828871204998 * x6 * x + -45.15982426280652078085 * x8 + -1397.81924632095371219715 * x8 * x + 1027.74731269267840836750 * x10 + 2523.89781842728108716667 * x10 * x + -3742.28748645515251553886 * x12 + -214.08743985366576378385 * x12 * x + 3756.71766118436582902827 * x14 + -3165.43874934247327619504 * x14 * x + 1127.44419798319680350398 * x16 + -154.08987706865711310597 * x16 * x;
+}
+
+// Polynomial approximation of EaryChow's AgX sigmoid curve.
+// In Blender's implementation, numbers could go a little bit over 1.0, so it's best to ensure
+// this behaves the same as Blender's with values up to 1.1. Input values cannot be lower than 0.
+vec3 agx_blender_default_contrast_approx(vec3 x) {
+	// Generated with Excel Trendline
+	// Input curve: Generated using python sigmoid with EaryChow configuration and 57 steps
+	// 7 coefficients, intercept of 0.0
+	vec3 x2 = x * x;
+	vec3 x4 = x2 * x2;
+	return -0.20687445 * x + 6.80888933 * x2 - 37.60519607 * x2 * x + 93.32681938 * x4 - 95.2780858 * x4 * x + 33.96372259 * x4 * x2;
+
+	// Generated with http://polynomialregression.drque.net/online.php
+	// Input curve: Generated using python sigmoid with EaryChow configuration and 250 steps + 50 and 5 padding and 50 and 1 weights
+	// 9 coefficients, forced first coefficient to 0.
+	// Error: R2 = 0.99974937451852
+	//vec3 x2 = x * x;
+	//vec3 x4 = x2 * x2;
+	//vec3 x6 = x4 * x2;
+	//return 0.201995196270619 * x + 0.781923241179302 * x2 - 3.20624998222877 * x2 * x - 8.92700714240154 * x4 + 79.8268336860607 * x4 * x - 141.464145472453 * x6 + 96.0769676184177 * x6 * x - 22.2878067587957 * x6 * x2;
 }
 
 // https://iolite-engine.com/blog_posts/minimal_agx_implementation
@@ -488,7 +509,7 @@ vec3 compensate_low_side_bt709(vec3 rgb) {
 // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
-vec3 tonemap_agx(vec3 color) {
+vec3 tonemap_agx_ref(vec3 color) {
 	const mat3 agx_inset_matrix = mat3(
 			0.856627153315983, 0.137318972929847, 0.11189821299995,
 			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
@@ -529,7 +550,7 @@ vec3 tonemap_agx(vec3 color) {
 	// it will only be at 1.018. It cannot be lower than 0.0.
 
 	// Apply sigmoid function approximation.
-	color = agx_blender_default_contrast_approx(color);
+	color = agx_blender_default_contrast_ref_approx(color);
 
 	// Convert back to linear before applying outset matrix.
 	// This will also prepare for conversion away from Rec. 2020.
@@ -722,7 +743,7 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 	} else if (params.tonemapper == TONEMAPPER_AGX_TROY_BLENDER_CONTRAST) {
 		return tonemap_agx_troy_blender_contrast(color);
 	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_REFERENCE) {
-		return tonemap_agx(color);
+		return tonemap_agx_ref(color);
 	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_SIMPLE_GUARDRAIL) {
 		return tonemap_agx_simple_guardrail(color);
 	} else if (params.tonemapper == TONEMAPPER_AGX_BLENDER_NO_GUARDRAIL) {
