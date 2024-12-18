@@ -5279,21 +5279,25 @@
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
 		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_REFERENCE" value="6" enum="EnvironmentToneMapper">
-			Blender's AgX created by EaryChow et al. Reference implementation that is low performance and not suitable for game engines.
+			Blender's AgX, created by EaryChow et al. Reference implementation that is low performance and not suitable for game engines.
+			Uses a high-order polynomial to closely approximate the contrast curve of the original Blender AgX.
+			Includes hue rotation to prevent hue shifting towards the "notorious six".
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
 		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_SIMPLE_GUARDRAIL" value="7" enum="EnvironmentToneMapper">
 			NOT YET IMPLEMENTED.
-			Blender's AgX created by EaryChow et al. This version has a simplified/approximated "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB.
+			Blender's AgX, created by EaryChow et al. This version has a simplified/approximated "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB.
+			Includes hue rotation to prevent hue shifting towards the "notorious six".
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
 		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_NO_GUARDRAIL" value="8" enum="EnvironmentToneMapper">
-			Blender's AgX created by EaryChow et al. This version has no "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB. In place of this guardrail, a simple hard clipping is used: max(color, vec3(0.0)).
+			Blender's AgX, created by EaryChow et al. This version has no "lower guardrail". The lower guardrail smoothly adjusts negative values that are created after converting to sRGB. In place of this guardrail, a simple hard clipping is used: max(color, vec3(0.0)).
+			Includes hue rotation calculations to prevent hue shifting towards the "notorious six".
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
 		<constant name="ENV_TONE_MAPPER_AGX_BLENDER_NO_GUARDRAIL_NO_HUE_ROTATION" value="9" enum="EnvironmentToneMapper">
-			Blender's AgX created by EaryChow et al. This version has no hue rotation or "lower guardrail".
-			Hue rotation prevents hue shifting towards the "notorious six". This has been entirely removed from this implementation, making this implementation only slightly slower than TONE_MAPPER_AGX_TROY.
+			Blender's AgX, created by EaryChow et al. Highest performance. This version has no hue rotation or "lower guardrail". Effectively the same performance as Troy's AgX, but with a different contrast curve and color calculations.
+			Hue rotation prevents hue shifting towards the "notorious six". This has been entirely removed from this implementation.
 			The lower guardrail smoothly adjusts negative values that are created after converting to sRGB. In place of this guardrail, a simple hard clipping is used: max(color, vec3(0.0)).
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant ENV_TONE_MAPPER_ACES], and can match [constant ENV_TONE_MAPPER_FILMIC] more closely.
 		</constant>
