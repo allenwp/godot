@@ -622,10 +622,9 @@ vec3 tonemap_agx_no_guardrail(vec3 color) {
 
 	// Log2 space encoding.
 	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
-	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	// Must be clamped because agx_blender_default_contrast_approx may not work well with values above 1.0
+	color = clamp(log2(color), min_ev, max_ev);
 	color = (color - min_ev) / (max_ev - min_ev);
-	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
-	// it will only be at 1.018. It cannot be lower than 0.0.
 
 	// Apply sigmoid function approximation.
 	color = agx_blender_default_contrast_approx(color);
@@ -688,10 +687,9 @@ vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
 
 	// Log2 space encoding.
 	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
-	color = max(log2(color), min_ev); // Blender's AgX does not restrict upper value at this point in LUT generation
+	// Must be clamped because agx_blender_default_contrast_approx may not work well with values above 1.0
+	color = clamp(log2(color), min_ev, max_ev);
 	color = (color - min_ev) / (max_ev - min_ev);
-	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
-	// it will only be at 1.018. It cannot be lower than 0.0.
 
 	// Apply sigmoid function approximation.
 	color = agx_blender_default_contrast_approx(color);
