@@ -333,17 +333,17 @@ vec3 tonemap_agx_troy(vec3 val) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	val = max(val, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
+	// Preventing negative values is required for the AgX inset matrix to behave correctly.
+	val = max(val, vec3(0.0));
 
 	// Input transform (inset)
 	val = agx_mat * val;
 
 	// Log2 space encoding.
 	val = max(val, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
-	val = max(log2(val), min_ev); // No need to restrict upper value, it will end up close to 1.0
+	// Must be clamped because polynomial approximations may not work well with values above 1.0 or below 0.0
+	val = clamp(log2(val), min_ev, max_ev);
 	val = (val - min_ev) / (max_ev - min_ev);
-	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
-	// it will only be at 1.018. It cannot be lower than 0.0.
 
 	// Apply sigmoid function approximation
 	val = agx_troy_default_contrast_approx(val);
@@ -380,17 +380,17 @@ vec3 tonemap_agx_troy_blender_contrast(vec3 val) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	val = max(val, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
+	// Preventing negative values is required for the AgX inset matrix to behave correctly.
+	val = max(val, vec3(0.0));
 
 	// Input transform (inset)
 	val = agx_mat * val;
 
 	// Log2 space encoding.
 	val = max(val, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
-	val = max(log2(val), min_ev); // No need to restrict upper value, it will end up close to 1.0
+	// Must be clamped because agx_blender_default_contrast_approx may not work well with values above 1.0
+	val = clamp(log2(val), min_ev, max_ev);
 	val = (val - min_ev) / (max_ev - min_ev);
-	// At this point, color could be as high as 1.1 in an extreme case, but with an input of 20.0
-	// it will only be at 1.018. It cannot be lower than 0.0.
 
 	// Apply sigmoid function approximation
 	val = agx_blender_default_contrast_approx(val);
