@@ -591,11 +591,10 @@ vec3 tonemap_agx_simple_guardrail(vec3 color) {
 }
 
 vec3 tonemap_agx_no_guardrail(vec3 color) {
-	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
-	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
-			0.5448120800524265834, 0.1404193453648930627, 0.08881713750335756733,
-			0.3737974436026257489, 0.7541077833540264976, 0.17885975536544060785,
-			0.08138096422089395182, 0.1053967470820201806, 0.73231542718934080579);
+	const mat3 agx_inset_matrix = mat3(
+			0.856627153315983, 0.137318972929847, 0.11189821299995,
+			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
+			0.0482516061458583, 0.101439036467562, 0.811302368396859);
 
 	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
 	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
@@ -609,13 +608,17 @@ vec3 tonemap_agx_no_guardrail(vec3 color) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
-	// instead of performing the complex compensate_low_side_bt2020 function.
-	// This also lets us combine the rec2020 and inset matrices.
-	color = max(color, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
+	// Do AGX in rec2020 to match Blender.
+	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
+
+	// Preventing negative values is required for the AgX inset matrix to behave correctly.
+	// This could also be done before the Rec. 2020 transform, allowing the transform to
+	// be combined with the AgX inset matrix, but doing this causes a loss of color information
+	// that could be correctly interpreted within the Rec. 2020 color space.
+	color = max(color, vec3(0.0));
 
 	// Do AGX in rec2020 to match Blender and then apply inset matrix.
-	color = srgb_to_rec2020_agx_inset_matrix * color;
+	color = agx_inset_matrix * color;
 
 	// Record current chromaticity angle.
 	vec3 pre_form_hsv = rgb2hsv(color);
@@ -659,11 +662,10 @@ vec3 tonemap_agx_no_guardrail(vec3 color) {
 }
 
 vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
-	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
-	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
-			0.5448120800524265834, 0.1404193453648930627, 0.08881713750335756733,
-			0.3737974436026257489, 0.7541077833540264976, 0.17885975536544060785,
-			0.08138096422089395182, 0.1053967470820201806, 0.73231542718934080579);
+	const mat3 agx_inset_matrix = mat3(
+			0.856627153315983, 0.137318972929847, 0.11189821299995,
+			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
+			0.0482516061458583, 0.101439036467562, 0.811302368396859);
 
 	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
 	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
@@ -677,13 +679,17 @@ vec3 tonemap_agx_no_guardrail_no_hue_rotation(vec3 color) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	// Godot rarely provides a useful negative input value, so simply clip to min of 0.0
-	// instead of performing the complex compensate_low_side_bt2020 function.
-	// This also lets us combine the rec2020 and inset matrices.
-	color = max(color, vec3(0.0)); // TODO: could this be removed since max(color, 1e-10) occurs below?
+	// Do AGX in rec2020 to match Blender.
+	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
+
+	// Preventing negative values is required for the AgX inset matrix to behave correctly.
+	// This could also be done before the Rec. 2020 transform, allowing the transform to
+	// be combined with the AgX inset matrix, but doing this causes a loss of color information
+	// that could be correctly interpreted within the Rec. 2020 color space.
+	color = max(color, vec3(0.0));
 
 	// Do AGX in rec2020 to match Blender and then apply inset matrix.
-	color = srgb_to_rec2020_agx_inset_matrix * color;
+	color = agx_inset_matrix * color;
 
 	// Log2 space encoding.
 	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
