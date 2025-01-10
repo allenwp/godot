@@ -96,19 +96,15 @@ vec3 agx_default_contrast_approx(vec3 x) {
 	return 0.021 * x + 4.0111 * x2 - 25.682 * x2 * x + 70.359 * x4 - 74.778 * x4 * x + 27.069 * x4 * x2;
 }
 
-const mat3 LINEAR_SRGB_TO_LINEAR_REC2020 = mat3(
-		vec3(0.6274, 0.0691, 0.0164),
-		vec3(0.3293, 0.9195, 0.0880),
-		vec3(0.0433, 0.0113, 0.8956));
-
 // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
 vec3 tonemap_agx(vec3 color) {
-	const mat3 agx_inset_matrix = mat3(
-			0.856627153315983, 0.137318972929847, 0.11189821299995,
-			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
-			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
+	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
+			0.5448120800524265834, 0.1404193453648930627, 0.08881713750335756733,
+			0.3737974436026257489, 0.7541077833540264976, 0.17885975536544060785,
+			0.08138096422089395182, 0.1053967470820201806, 0.73231542718934080579);
 
 	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
 	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
@@ -122,19 +118,22 @@ vec3 tonemap_agx(vec3 color) {
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
 	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
-	// Do AGX in rec2020 to match Blender.
-	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
+	// Preventing negative values is required for the AgX inset matrix to behave
+	// correctly. This is done before the Rec. 2020 transform to allow this
+	// transform to be combined with the AgX inset matrix. This results in a loss
+	// of color information that could be correctly interpreted within the
+	// Rec. 2020 color space as positive RGB values, but it is uncommon for Godot
+	// to provide this function with negative sRGB values and therefore not worth
+	// the performance cost of an additional matrix multiplication.
+	// A value of 2e-10 intentionally introduces insignificant error to prevent
+	// log2(0.0) after the inset matrix is applied. color will be >= 1e-10 after
+	// the matrix.
+	color = max(color, 2e-10);
 
-	// Preventing negative values is required for the AgX inset matrix to behave correctly.
-	// This could also be done before the Rec. 2020 transform, allowing the transform to
-	// be combined with the AgX inset matrix, but doing this causes a loss of color information
-	// that could be correctly interpreted within the Rec. 2020 color space.
-	color = max(color, vec3(0.0));
-
-	color = agx_inset_matrix * color;
+	// Do AGX in rec2020 to match Blender and then apply inset matrix.
+	color = srgb_to_rec2020_agx_inset_matrix * color;
 
 	// Log2 space encoding.
-	color = max(color, 1e-10); // Prevent log2(0.0). Possibly unnecessary.
 	// Must be clamped because agx_blender_default_contrast_approx may not work
 	// well with values outside of the range [0.0, 1.0]
 	color = clamp(log2(color), min_ev, max_ev);
