@@ -427,7 +427,18 @@
 			[b]Note:[/b] This tonemapping operator is called "ACES Fitted" in Godot 3.x.
 		</constant>
 		<constant name="TONE_MAPPER_AGX" value="4" enum="ToneMapper">
+			Modified in this branch to reduce the number of max function calls.
 			Use the AgX tonemapper. AgX is slightly more expensive than other options, but it handles bright lighting in a more realistic fashion by desaturating it as it becomes brighter. AgX is less likely to darken parts of the scene compared to [constant TONE_MAPPER_ACES] and can match the overall scene brightness of [constant TONE_MAPPER_FILMIC] more closely.
+		</constant>
+		<constant name="TONE_MAPPER_AGX_NO_NEG" value="5" enum="ToneMapper">
+			Clips all negative values before converting to Rec 2020 color space, resulting in loss of color information, but reducing matrix multiplications by one. Also reduces the number of max function calls.
+		</constant>
+		<constant name="TONE_MAPPER_AGX_NEG_VISUALIZER" value="6" enum="ToneMapper">
+			Highlights the parts of the image that are negative RGB values.
+			Magenta: 0 > x > -0.01
+			Cyan: -0.01 > x > -0.1
+			Yellow: -0.1 > x
+			Red: Log2(0.0) undefined behavior
 		</constant>
 		<constant name="GLOW_BLEND_MODE_ADDITIVE" value="0" enum="GlowBlendMode">
 			Additive glow blending mode. Mostly used for particles, glows (bloom), lens flare, bright sources.
