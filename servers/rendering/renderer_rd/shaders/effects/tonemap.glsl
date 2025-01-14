@@ -264,76 +264,200 @@ vec3 tonemap_aces(vec3 color, float white) {
 	return color_tonemapped / white_tonemapped;
 }
 
-// Polynomial approximation of EaryChow's AgX sigmoid curve.
-// x must be within the range [0.0, 1.0]
-vec3 agx_contrast_approx(vec3 x) {
-	// Generated with Excel trendline
-	// Input data: Generated using python sigmoid with EaryChow's configuration and 57 steps
-	// Additional padding values were added to give correct intersections at 0.0 and 1.0
-	// 6th order, intercept of 0.0 to remove an operation and ensure intersection at 0.0
-	vec3 x2 = x * x;
-	vec3 x4 = x2 * x2;
-	return 0.021 * x + 4.0111 * x2 - 25.682 * x2 * x + 70.359 * x4 - 74.778 * x4 * x + 27.069 * x4 * x2;
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
-// This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
+vec3 hsv2rgb(vec3 c) {
+	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+const mat3 LINEAR_SRGB_TO_LINEAR_REC2020 = mat3(
+		0.62751148770907403411, 0.069107555861366290094, 0.016396571916060692158,
+		0.32927727964735428428, 0.91950325371517433606, 0.088024234821922748922,
+		0.04330296975639152724, 0.011359406931309376229, 0.89551332165316518758);
+const mat3 LINEAR_REC2020_TO_LINEAR_SRGB = mat3(
+		1.6602062978811019111, -0.12455265278490989962, -0.018154995139836493422,
+		-0.58755383980194848639, 1.1329456581856140455, -0.10060465175595819539,
+		-0.07282705725221054784, -0.008348386143453457498, 1.1188320152896576747);
+
+// Currently doesn't do anything because of limits on godot input (???)
+// vec3 compensate_low_side_bt2020(vec3 rgb) {
+// 	const vec3 LUMINANCE_COEFFS = vec3(0.2658180370250449, 0.59846986045365, 0.1357121025213052);
+
+// 	// Calculate original luminance
+// 	float Y = dot(rgb, LUMINANCE_COEFFS);
+
+// 	// Calculate luminance of the opponent color, and use it to compensate for negative luminance values
+// 	vec3 inverse_rgb = vec3(max(rgb.r, max(rgb.g, rgb.b))) - rgb;
+// 	float max_inverse = max(inverse_rgb.r, max(inverse_rgb.g, inverse_rgb.b));
+// 	float Y_inverse_RGB = dot(inverse_rgb, LUMINANCE_COEFFS);
+// 	Y = max_inverse - Y_inverse_RGB + Y; // Y = y_compensate_negative in source script
+
+// 	// Offset the input tristimulus such that there are no negatives
+// 	float min_rgb = min(rgb.r, min(rgb.g, rgb.b));
+// 	float offset = max(-min_rgb, 0.0);
+// 	vec3 rgb_offset = rgb + offset;
+
+// 	// Calculate luminance of the opponent color, and use it to compensate for negative luminance values
+// 	vec3 inverse_rgb_offset = vec3(max(rgb_offset.r, max(rgb_offset.g, rgb_offset.b))) - rgb_offset;
+// 	float max_inverse_rgb_offset = max(inverse_rgb_offset.r, max(inverse_rgb_offset.g, inverse_rgb_offset.b));
+// 	float Y_inverse_RGB_offset = dot(inverse_rgb_offset, LUMINANCE_COEFFS);
+// 	float Y_new = dot(rgb_offset, LUMINANCE_COEFFS);
+// 	Y_new = max_inverse_rgb_offset - Y_inverse_RGB_offset + Y_new;
+
+// 	// Compensate the intensity to match the original luminance
+// 	float luminance_ratio = Y_new > Y ? Y / Y_new : 1.0;
+
+// 	rgb = luminance_ratio * rgb_offset;
+// 	return rgb;
+// }
+
+vec3 compensate_low_side_bt709(vec3 rgb) {
+	const vec3 LUMINANCE_COEFFS = vec3(0.2658180370250449, 0.59846986045365, 0.1357121025213052);
+
+	float Y = dot(LINEAR_SRGB_TO_LINEAR_REC2020 * rgb, LUMINANCE_COEFFS);
+
+	// Calculate luminance of the opponent color, and use it to compensate for negative luminance values
+	vec3 inverse_rgb = vec3(max(rgb.r, max(rgb.g, rgb.b))) - rgb;
+	float max_inverse = max(inverse_rgb.r, max(inverse_rgb.g, inverse_rgb.b));
+	float Y_inverse_RGB = dot(LINEAR_SRGB_TO_LINEAR_REC2020 * inverse_rgb, LUMINANCE_COEFFS);
+	float y_compensate_negative = (max_inverse - Y_inverse_RGB + Y);
+	Y = mix(y_compensate_negative, Y, clamp(pow(Y, 0.08), 0.0, 1.0));
+	// the lerp was because unlike in the Rec.2020 version, if we use the compensate_negative value as-is the Rec.2020-
+	// green will be offset upwards too much, so lerp it to limit the compensate_negative to small values
+
+	// Offset the input tristimulus such that there are no negatives
+	float min_rgb = min(rgb.r, min(rgb.g, rgb.b));
+	float offset = max(-min_rgb, 0.0);
+	vec3 rgb_offset = rgb + offset;
+
+	// Calculate luminance of the opponent color, and use it to compensate for negative luminance values
+	vec3 inverse_rgb_offset = vec3(max(rgb_offset.r, max(rgb_offset.g, rgb_offset.b))) - rgb_offset;
+	float max_inverse_rgb_offset = max(inverse_rgb_offset.r, max(inverse_rgb_offset.g, inverse_rgb_offset.b));
+	float Y_inverse_RGB_offset = dot(LINEAR_SRGB_TO_LINEAR_REC2020 * inverse_rgb_offset, LUMINANCE_COEFFS);
+	float Y_new = dot(LINEAR_SRGB_TO_LINEAR_REC2020 * rgb_offset, LUMINANCE_COEFFS);
+	float Y_new_compensate_negative = (max_inverse_rgb_offset - Y_inverse_RGB_offset + Y_new);
+	Y_new = mix(Y_new_compensate_negative, Y_new, clamp(pow(Y_new, 0.08), 0, 1));
+
+	// the lerp was because unlike in the Rec.2020 version, if we use the compensate_negative value as-is the Rec.2020-
+	// green will be offset upwards too much, so lerp it to limit the compensate_negative to small values
+
+	// Compensate the intensity to match the original luminance
+	float luminance_ratio = Y_new > Y ? Y / clamp(Y_new, 1.e-100, 3.402823466e+38) : 1.0; // 3.402823466e+38 is max float
+
+	rgb = luminance_ratio * rgb_offset;
+	return rgb;
+}
+
+vec3 exponential(vec3 x_in, float power) {
+	return x_in / pow(1.0 + pow(x_in, vec3(power)), vec3(1.0 / power));
+}
+
+vec3 exponential_curve(vec3 x_in, vec3 scale_input, float slope, float power, float transition_x, float transition_y) {
+	return (scale_input * exponential(((slope * (x_in - transition_x)) / scale_input), power)) + transition_y;
+}
+
+float scale_function(float transition_x, float transition_y, float power, float slope) {
+	float term_a = pow(slope * (1.0 - transition_x), -1.0 * power);
+	float term_b = pow((slope * (1.0 - transition_x)) / (1.0 - transition_y), power) - 1.0;
+	return pow(term_a * term_b, -1.0 / power);
+}
+
+vec3 calculate_sigmoid(vec3 x_in, float midgrey, float normalized_log2_minimum, float normalized_log2_maximum) {
+	const float slope = 2.4;
+	const float power = 1.5;
+
+	float pivot_x = abs(normalized_log2_minimum / (normalized_log2_maximum - normalized_log2_minimum)); //0.18 (middle gray) in original linear values
+	float pivot_y = pow(midgrey, (1.0 / 2.4));
+
+	vec3 bottom_scale = vec3(-1.0 * scale_function(1.0 - pivot_x, 1.0 - pivot_y, power, slope));
+	vec3 top_scale = vec3(scale_function(pivot_x, pivot_y, power, slope));
+	vec3 scaleValue = mix(top_scale, bottom_scale, lessThan(x_in, vec3(pivot_x)));
+	return exponential_curve(x_in, scaleValue, slope, power, pivot_x, pivot_y);
+}
+
+// log_encoding_Log2 from colour/models/rgb/transfer_functions/log.py of colour science package
+vec3 log_encoding_Log2(vec3 lin, float middle_grey, float min_exposure, float max_exposure) {
+	lin = max(lin, 1e-10);
+	vec3 lg2 = log2(lin / middle_grey);
+	vec3 log_norm = (lg2 - min_exposure) / (max_exposure - min_exposure);
+	return log_norm;
+}
+
+// This is a glsl implementation of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
-vec3 tonemap_agx(vec3 color) {
-	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
-	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
-			0.54490813676363087053, 0.14044005884001287035, 0.088827411851915368603,
-			0.37377945959812267119, 0.75410959864013760045, 0.17887712465043811023,
-			0.081384976686407536266, 0.10543358536857773485, 0.73224999956948382528);
+vec3 tonemap_agx(vec3 color, float white) {
+	const mat3 agx_inset_matrix = mat3(
+			0.856627153315983, 0.137318972929847, 0.11189821299995,
+			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
+			0.0482516061458583, 0.101439036467562, 0.811302368396859);
+	// This outset matrix is identical to the one used in Blender, but the inverse
+	// calculation has been baked into it.
+	const mat3 agx_outset_matrix = mat3(
+			1.1271005818144366432, -0.14132976349843826565, -0.14132976349843824772,
+			-0.1106066430966032116, 1.1578237022162717623, -0.11060664309660291788,
+			-0.016493938717834568157, -0.01649393871783425265, 1.2519364065950402828);
 
-	// Combined inverse AgX outset matrix and linear Rec 2020 to linear sRGB matrices.
-	const mat3 agx_outset_rec2020_to_srgb_matrix = mat3(
-			1.9645509602733325934, -0.29932243390911083839, -0.16436833806080403409,
-			-0.85585845117807513559, 1.3264510741502356555, -0.23822464068860595117,
-			-0.10886710826831608324, -0.027084020983874825605, 1.402665347143271889);
+	const float midgrey = 0.18;
+	const float normalized_log2_minimum = -10.0;
+	const float normalized_log2_maximum = log2(white / midgrey); // Blender default: 6.5
 
-	// LOG2_MIN      = -10.0
-	// LOG2_MAX      =  +6.5
-	// MIDDLE_GRAY   =  0.18
-	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
-	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+	// Do AGX in rec2020 to match Blender.
+	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
 
-	// Large negative values in one channel and large positive values in other
-	// channels can result in a colour that appears darker and more saturated than
-	// desired after passing it through the inset matrix. For this reason, it is
-	// best to prevent negative input values.
-	// This is done before the Rec. 2020 transform to allow the Rec. 2020
-	// transform to be combined with the AgX inset matrix. This results in a loss
-	// of color information that could be correctly interpreted within the
-	// Rec. 2020 color space as positive RGB values, but it is less common for Godot
-	// to provide this function with negative sRGB values and therefore not worth
-	// the performance cost of an additional matrix multiplication.
-	// A value of 2e-10 intentionally introduces insignificant error to prevent
-	// log2(0.0) after the inset matrix is applied; color will be >= 1e-10 after
-	// the matrix transform.
-	color = max(color, 2e-10);
+	// Godot might provide negative values differfently than blender? Simply clipping seems to behave more like blender than attempting the compensate_low_side_bt709
+	//compensate_low_side_bt2020(color);
+	color = max(color, 0.0);
 
-	// Do AGX in rec2020 to match Blender and then apply inset matrix.
-	color = srgb_to_rec2020_agx_inset_matrix * color;
+	// Input transform (inset).
+	color = agx_inset_matrix * color;
 
-	// Log2 space encoding.
-	// Must be clamped because agx_contrast_approx may not work
-	// well with values outside of the range [0.0, 1.0]
-	color = clamp(log2(color), min_ev, max_ev);
-	color = (color - min_ev) / (max_ev - min_ev);
+	// Record current chromaticity angle.
+	vec3 pre_form_hsv = rgb2hsv(color);
 
-	// Apply sigmoid function approximation.
-	color = agx_contrast_approx(color);
+	// Apply Log2 curve to prepare for sigmoid
+	color = log_encoding_Log2(color, midgrey, normalized_log2_minimum, normalized_log2_maximum); // TODO: does this result need to be clamped at all?
+
+	// Apply sigmoid function.
+	color = calculate_sigmoid(color, midgrey, normalized_log2_minimum, normalized_log2_maximum);
 
 	// Convert back to linear before applying outset matrix.
 	color = pow(color, vec3(2.4));
 
-	// Apply outset to make the result more chroma-laden and then go back to linear sRGB.
-	color = agx_outset_rec2020_to_srgb_matrix * color;
+	// Record post-sigmoid chroma angle.
+	color = rgb2hsv(color);
 
-	// Blender's lusRGB.compensate_low_side is too complex for this shader, so
-	// simply return the color, even if it has negative components. These negative
-	// components may be useful for subsequent color adjustments.
+	// Mix pre-formation chroma angle with post formation chroma angle.
+	// Hue can wrap from 1 back to 0. This can cause incorrect chroma mixing.
+	// This never happens in the source script's LUT generation, but it can happen here,
+	// usually with very bright or very dark red-blue colors:
+	if (color.x > pre_form_hsv.x && color.x - pre_form_hsv.x > 0.5) {
+		color.x -= 1.0;
+	} else if (color.x < pre_form_hsv.x && pre_form_hsv.x - color.x > 0.5) {
+		color.x += 1.0;
+	}
+	color.x = mix(pre_form_hsv.x, color.x, 0.4);
+
+	color = hsv2rgb(color);
+
+	// Apply outset to make the result more chroma-laden
+	color = agx_outset_matrix * color;
+
+	color = LINEAR_REC2020_TO_LINEAR_SRGB * color;
+
+	// apply sRGB's lower Guard Rail to prevent hard clipping
+	color = compensate_low_side_bt709(color);
+
 	return color;
 }
 
@@ -362,7 +486,7 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
 		return tonemap_aces(max(vec3(0.0f), color), white);
 	} else { // TONEMAPPER_AGX
-		return tonemap_agx(color);
+		return tonemap_agx(color, white);
 	}
 }
 
