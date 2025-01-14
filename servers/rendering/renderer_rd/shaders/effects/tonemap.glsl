@@ -284,7 +284,8 @@ const mat3 LINEAR_SRGB_TO_LINEAR_REC2020 = mat3(
 // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
-vec3 tonemap_agx(vec3 color) {
+// max_ev is a log2 encoded white parameter.
+vec3 tonemap_agx(vec3 color, float max_ev) {
 	const mat3 agx_inset_matrix = mat3(
 			0.856627153315983, 0.137318972929847, 0.11189821299995,
 			0.0951212405381588, 0.761241990602591, 0.0767994186031903,
@@ -297,10 +298,8 @@ vec3 tonemap_agx(vec3 color) {
 			-0.10883731725048386702, -0.02702191058393112346, 1.4025007379775505276);
 
 	// LOG2_MIN      = -10.0
-	// LOG2_MAX      =  +6.5
 	// MIDDLE_GRAY   =  0.18
 	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
-	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
 	// Do AGX in rec2020 to match Blender.
 	color = LINEAR_SRGB_TO_LINEAR_REC2020 * color;
@@ -360,7 +359,7 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
 		return tonemap_aces(max(vec3(0.0f), color), white);
 	} else { // TONEMAPPER_AGX
-		return tonemap_agx(color);
+		return tonemap_agx(color, white);
 	}
 }
 
