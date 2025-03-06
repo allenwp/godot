@@ -1120,7 +1120,7 @@ void Environment::_validate_property(PropertyInfo &p_property) const {
 		}
 	}
 
-	if (p_property.name == "tonemap_white" && (tone_mapper == TONE_MAPPER_LINEAR || tone_mapper == TONE_MAPPER_AGX)) {
+	if (p_property.name == "tonemap_white" && (tone_mapper == TONE_MAPPER_LINEAR)) {
 		// Whitepoint adjustment is not available with AgX or linear as it's hardcoded there.
 		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 	}

@@ -365,8 +365,8 @@ void RendererSceneRender::environment_set_tonemap(RID p_env, RS::EnvironmentTone
 	environment_storage.environment_set_tonemap(p_env, p_tone_mapper, p_exposure, p_white);
 }
 
-void RendererSceneRender::environment_set_tonemap_range(RID p_env, float p_min_value, float p_max_value) {
-	environment_storage.environment_set_tonemap_range(p_env, p_min_value, p_max_value);
+void RendererSceneRender::environment_set_tonemap_hdr(RID p_env, float p_ref_luminance, float p_max_luminance) {
+	environment_storage.environment_set_tonemap_hdr(p_env, p_ref_luminance, p_max_luminance);
 }
 
 RS::EnvironmentToneMapper RendererSceneRender::environment_get_tone_mapper(RID p_env) const {
@@ -381,12 +381,12 @@ float RendererSceneRender::environment_get_white(RID p_env) const {
 	return environment_storage.environment_get_white(p_env);
 }
 
-float RendererSceneRender::environment_get_min_value(RID p_env) const {
-	return environment_storage.environment_get_min_value(p_env);
+float RendererSceneRender::environment_get_ref_luminance(RID p_env) const {
+	return environment_storage.environment_get_ref_luminance(p_env);
 }
 
-float RendererSceneRender::environment_get_max_value(RID p_env) const {
-	return environment_storage.environment_get_max_value(p_env);
+float RendererSceneRender::environment_get_max_luminance(RID p_env) const {
+	return environment_storage.environment_get_max_luminance(p_env);
 }
 
 // Fog

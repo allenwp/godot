@@ -98,10 +98,8 @@ layout(push_constant, std430) uniform Params {
 	float auto_exposure_scale;
 	float luminance_multiplier;
 
-	float source_min_value;
-	float source_max_value;
-	float dest_min_value;
-	float dest_max_value;
+	float ref_luminance;
+	float max_luminance;
 }
 params;
 
@@ -269,22 +267,15 @@ vec3 tonemap_aces(vec3 color, float white) {
 	return color_tonemapped / white_tonemapped;
 }
 
-// Polynomial approximation of EaryChow's AgX sigmoid curve.
-// x must be within the range [0.0, 1.0]
-vec3 agx_contrast_approx(vec3 x) {
-	// Generated with Excel trendline
-	// Input data: Generated using python sigmoid with EaryChow's configuration and 57 steps
-	// Additional padding values were added to give correct intersections at 0.0 and 1.0
-	// 6th order, intercept of 0.0 to remove an operation and ensure intersection at 0.0
-	vec3 x2 = x * x;
-	vec3 x4 = x2 * x2;
-	return 0.021 * x + 4.0111 * x2 - 25.682 * x2 * x + 70.359 * x4 - 74.778 * x4 * x + 27.069 * x4 * x2;
-}
-
-// This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
+// This is a simplified glsl implementation of EaryChow's AgX that is used by Blender.
+// Input: unbounded linear Rec. 709
+// Output: unbounded linear Rec. 709 (Most any value you care about will be within [0.0, 1.0], thus safe to clip.)
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
-vec3 tonemap_agx(vec3 color) {
+// Changes: Negative clipping in input color space without "guard rails" and no chroma-angle mixing.
+// Repository for this code: https://github.com/allenwp/AgX-GLSL-Shaders
+// Refer to source repository for other matrices if input/output color space ever changes.
+vec3 tonemap_agx(vec3 color, float white, float mid_out) {
 	// Combined linear sRGB to linear Rec 2020 and Blender AgX inset matrices:
 	const mat3 srgb_to_rec2020_agx_inset_matrix = mat3(
 			0.54490813676363087053, 0.14044005884001287035, 0.088827411851915368603,
@@ -297,11 +288,16 @@ vec3 tonemap_agx(vec3 color) {
 			-0.85585845117807513559, 1.3264510741502356555, -0.23822464068860595117,
 			-0.10886710826831608324, -0.027084020983874825605, 1.402665347143271889);
 
-	// LOG2_MIN      = -10.0
-	// LOG2_MAX      =  +6.5
-	// MIDDLE_GRAY   =  0.18
-	const float min_ev = -12.4739311883324; // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
-	const float max_ev = 4.02606881166759; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+	// Terms of Timothy Lottes' tonemapping curve equation:
+	// c and b are calculated based on a and d with AgX mid and max parameters
+	// using the Mathematica notebook in the source AgX-GLSL-Shaders repository.
+	const float a = 1.36989969378897;
+	const float d = 0.903916850555009;
+	const float e = a * d;
+	const float mid_in = 0.18;
+	// Should be precalculated before the shader is run:
+	float b = (-1.0 * pow(mid_in, a) + pow(white, a) * mid_out) / ((pow(pow(white, a), d) - pow(pow(mid_in, a), d)) * mid_out);
+	float c = (pow(pow(white, a), d) * pow(mid_in, a) - pow(white, a) * pow(pow(mid_in, a), d) * mid_out) / ((pow(pow(white, a), d) - pow(pow(mid_in, a), d)) * mid_out);
 
 	// Large negative values in one channel and large positive values in other
 	// channels can result in a colour that appears darker and more saturated than
@@ -310,28 +306,25 @@ vec3 tonemap_agx(vec3 color) {
 	// This is done before the Rec. 2020 transform to allow the Rec. 2020
 	// transform to be combined with the AgX inset matrix. This results in a loss
 	// of color information that could be correctly interpreted within the
-	// Rec. 2020 color space as positive RGB values, but it is less common for Godot
-	// to provide this function with negative sRGB values and therefore not worth
+	// Rec. 2020 color space as positive RGB values, but is often not worth
 	// the performance cost of an additional matrix multiplication.
 	// A value of 2e-10 intentionally introduces insignificant error to prevent
 	// log2(0.0) after the inset matrix is applied; color will be >= 1e-10 after
 	// the matrix transform.
 	color = max(color, 2e-10);
 
-	// Do AGX in rec2020 to match Blender and then apply inset matrix.
+	// Apply inset matrix.
 	color = srgb_to_rec2020_agx_inset_matrix * color;
 
-	// Log2 space encoding.
-	// Must be clamped because agx_contrast_approx may not work
-	// well with values outside of the range [0.0, 1.0]
-	color = clamp(log2(color), min_ev, max_ev);
-	color = (color - min_ev) / (max_ev - min_ev);
-
-	// Apply sigmoid function approximation.
-	color = agx_contrast_approx(color);
-
-	// Convert back to linear before applying outset matrix.
-	color = pow(color, vec3(2.4));
+	// Use Timothy Lottes' tonemapping equation to approximate AgX's curve.
+	// Slide 44 of "Advanced Techniques and Optimization of HDR Color Pipelines"
+	// https://gpuopen.com/wp-content/uploads/2016/03/GdcVdrLottes.pdf
+	// color = pow(color, a);
+	// color = color / (pow(color, d) * b + c);
+	// Simplified using hardware-implemented shader operations.
+	// Thanks to Stephen Hill for this optimization tip!
+	color = log2(color);
+	color = exp2(color * a) / (exp2(color * e) * b + c);
 
 	// Apply outset to make the result more chroma-laden and then go back to linear sRGB.
 	color = agx_outset_rec2020_to_srgb_matrix * color;
@@ -349,14 +342,6 @@ vec3 linear_to_srgb(vec3 color) {
 	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
 }
 
-vec3 normalize(vec3 value, vec3 min, vec3 max) {
-	return (value - min) / (max - min);
-}
-
-vec3 denormalize(vec3 value, vec3 min, vec3 max) {
-	return value * (max - min) + min;
-}
-
 #define TONEMAPPER_LINEAR 0
 #define TONEMAPPER_REINHARD 1
 #define TONEMAPPER_FILMIC 2
@@ -371,19 +356,25 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 	if (params.tonemapper == TONEMAPPER_LINEAR) {
 		return color;
 	} else if (params.tonemapper == TONEMAPPER_REINHARD) {
+		color *= params.ref_luminance / params.max_luminance;
 		color = tonemap_reinhard(max(vec3(0.0f), color), white);
 	} else if (params.tonemapper == TONEMAPPER_FILMIC) {
+		// scaling color produces incorrect contrast
+		color *= params.ref_luminance / params.max_luminance;
 		color = tonemap_filmic(max(vec3(0.0f), color), white);
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
+		// scaling color produces incorrect contrast
+		color *= params.ref_luminance / params.max_luminance;
 		color = tonemap_aces(max(vec3(0.0f), color), white);
 	} else { // TONEMAPPER_AGX
-		color = tonemap_agx(color);
+		// Both the mid_out scaling and the color scaling approach produce incorrect contrast
+		float mid_out = 0.18;
+		//mid_out *= params.ref_luminance / params.max_luminance;
+		color *= params.ref_luminance / params.max_luminance;
+		color = tonemap_agx(color, white, mid_out);
 	}
 
-	// Expand color to the target output range for HDR render targets.
-	if (!bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
-		color = denormalize(color, vec3(params.dest_min_value), vec3(params.dest_max_value));
-	}
+	color *= params.max_luminance / params.ref_luminance;
 
 	return color;
 }
@@ -432,33 +423,14 @@ vec3 gather_glow(sampler2D tex, vec2 uv) { // sample all selected glow levels
 #define GLOW_MODE_REPLACE 3
 #define GLOW_MODE_MIX 4
 
-vec3 apply_glow(vec3 color, vec3 glow, bool hdrInput) { // apply glow using the selected blending mode
+vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blending mode
 	if (params.glow_mode == GLOW_MODE_ADD) {
 		return color + glow;
 	} else if (params.glow_mode == GLOW_MODE_SCREEN) {
-		if (hdrInput) {
-			// Compress the color and glow from scene intensity to [0, 1] to avoid artifacts due to the color clamping.
-			color = normalize(color, vec3(params.source_min_value), vec3(params.source_max_value));
-			glow = normalize(glow, vec3(params.source_min_value), vec3(params.source_max_value));
-		}
-
 		// Needs color clamping.
 		glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
-		color = max((color + glow) - (color * glow), vec3(0.0));
-
-		if (hdrInput) {
-			// Expand the color back to the original intensity range.
-			color = denormalize(color, vec3(params.source_min_value), vec3(params.source_max_value));
-		}
-
-		return color;
+		return max((color + glow) - (color * glow), vec3(0.0));
 	} else if (params.glow_mode == GLOW_MODE_SOFTLIGHT) {
-		if (hdrInput) {
-			// Compress the color and glow from scene intensity to [0, 1] to avoid artifacts due to the color clamping.
-			color = normalize(color, vec3(params.source_min_value), vec3(params.source_max_value));
-			glow = normalize(glow, vec3(params.source_min_value), vec3(params.source_max_value));
-		}
-
 		// Needs color clamping.
 		glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
 		glow = glow * vec3(0.5f) + vec3(0.5f);
@@ -466,12 +438,6 @@ vec3 apply_glow(vec3 color, vec3 glow, bool hdrInput) { // apply glow using the 
 		color.r = (glow.r <= 0.5f) ? (color.r - (1.0f - 2.0f * glow.r) * color.r * (1.0f - color.r)) : (((glow.r > 0.5f) && (color.r <= 0.25f)) ? (color.r + (2.0f * glow.r - 1.0f) * (4.0f * color.r * (4.0f * color.r + 1.0f) * (color.r - 1.0f) + 7.0f * color.r)) : (color.r + (2.0f * glow.r - 1.0f) * (sqrt(color.r) - color.r)));
 		color.g = (glow.g <= 0.5f) ? (color.g - (1.0f - 2.0f * glow.g) * color.g * (1.0f - color.g)) : (((glow.g > 0.5f) && (color.g <= 0.25f)) ? (color.g + (2.0f * glow.g - 1.0f) * (4.0f * color.g * (4.0f * color.g + 1.0f) * (color.g - 1.0f) + 7.0f * color.g)) : (color.g + (2.0f * glow.g - 1.0f) * (sqrt(color.g) - color.g)));
 		color.b = (glow.b <= 0.5f) ? (color.b - (1.0f - 2.0f * glow.b) * color.b * (1.0f - color.b)) : (((glow.b > 0.5f) && (color.b <= 0.25f)) ? (color.b + (2.0f * glow.b - 1.0f) * (4.0f * color.b * (4.0f * color.b + 1.0f) * (color.b - 1.0f) + 7.0f * color.b)) : (color.b + (2.0f * glow.b - 1.0f) * (sqrt(color.b) - color.b)));
-
-		if (hdrInput) {
-			// Expand the color back to the original intensity range.
-			color = denormalize(color, vec3(params.source_min_value), vec3(params.source_max_value));
-		}
-
 		return color;
 	} else { //replace
 		return glow;
@@ -626,7 +592,7 @@ void main() {
 			glow = linear_to_srgb(glow);
 		}
 
-		color.rgb = apply_glow(color.rgb, glow, !bool(params.flags & FLAG_CONVERT_TO_SRGB));
+		color.rgb = apply_glow(color.rgb, glow);
 	}
 #endif
 

@@ -344,12 +344,9 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 					float max_luminance = context_driver->window_get_hdr_output_max_luminance(parent_window);
 					float reference_luminance = context_driver->window_get_hdr_output_reference_luminance(parent_window);
 
-					float min_value = MAX(min_luminance / MAX(reference_luminance, 1.0f), 0.0f);
-					float max_value = MAX(max_luminance / MAX(reference_luminance, 1.0f), 1.0f);
-
-					RSG::scene->environment_set_tonemap_range(environment, min_value, max_value);
+					RSG::scene->environment_set_tonemap_hdr(environment, reference_luminance, max_luminance);
 				} else {
-					RSG::scene->environment_set_tonemap_range(environment, 0.0f, 1.0f);
+					RSG::scene->environment_set_tonemap_hdr(environment, 200.0f, 200.0f);
 				}
 			}
 		}
