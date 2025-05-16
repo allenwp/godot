@@ -208,6 +208,21 @@ void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::Environm
 	ERR_FAIL_NULL(env);
 	env->exposure = p_exposure;
 	env->tone_mapper = p_tone_mapper;
+	if (p_tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
+		// nonlinear scaling ratio between channels. This is important for AgX to
+		// give a similar appearance across different maxVal, but it means that
+		// input values must be higher to achieve the full maxVal output.
+		p_white *= env->max_value;
+	} else if (p_tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && env->max_value != 1.0) { // TODO: env->max_value != 1.0 is a temp hack. This should only happen when HDR is enabled.
+		p_white = MAX(p_white, env->max_value);
+	} // else if (p_tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
+	//	p_white = MAX(p_white, env->max_value);
+	// }
+
+	float lowClip = 0.0; // TODO: user parameter
+	p_white -= lowClip;
+
 	env->white = p_white;
 }
 
