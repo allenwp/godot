@@ -84,6 +84,14 @@ layout(push_constant, std430) uniform Params {
 
 	vec2 pixel_size;
 	uint tonemapper;
+	float tonemap_black;
+	float tonemap_a;
+	float tonemap_b;
+	float tonemap_c;
+	float tonemap_d;
+	float tonemap_e;
+	float tonemap_f;
+	float tonemap_g;
 	uint pad;
 
 	uvec2 glow_texture_size;
@@ -94,12 +102,10 @@ layout(push_constant, std430) uniform Params {
 	float glow_levels[7];
 
 	float exposure;
-	float white;
 	float auto_exposure_scale;
 	float luminance_multiplier;
 
 	float output_max_value;
-	uint pad2[3];
 }
 params;
 
@@ -212,7 +218,7 @@ vec4 texture2D_bicubic(sampler2D tex, vec2 uv, int p_lod) {
 
 // Based on Reinhard's extended formula, see equation 4 in https://doi.org/cjbgrt
 vec3 tonemap_reinhard(vec3 color, float white) {
-	// TODO: do this next line on the CPU instead (move to RendererEnvironmentStorage::environment_set_tonemap?):
+	// TODO: do this next line on the CPU instead):
 	float white_squared = (white * white) / params.output_max_value;
 
 	// Maybe this can be optimized further? I stomped over the old optimization to add in HDR support.
@@ -293,8 +299,17 @@ vec3 tonemap_aces(vec3 color, float white) {
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-vec3 allenwp_curve(vec3 x, float contrast, float midIn, float midOut, float slope, float shoulderMaxVal, float w, float toe_a) {
+vec3 allenwp_curve(vec3 x) {
+	float contrast = params.tonemap_a;
+	float midIn = params.tonemap_b;
+	float midOut = params.tonemap_c;
+	float slope = params.tonemap_d;
+	float shoulderMaxVal = params.tonemap_e;
+	float w = params.tonemap_f;
+	float toe_a = params.tonemap_g;
+
 	// Shoulder
+	// TODO: optimize this
 	vec3 s = x;
 	s -= midIn;
 	s = slope * s * (1.0 + s / (w * slope)) / (1.0 + (s * slope) / shoulderMaxVal);
@@ -310,8 +325,8 @@ vec3 allenwp_curve(vec3 x, float contrast, float midIn, float midOut, float slop
 // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
 // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
-vec3 tonemap_agx(vec3 color, float white, float lowClip, float contrast) {
-	// Input shouldl be non-negative!
+vec3 tonemap_agx(vec3 color) {
+	// Input color should be non-negative!
 	// Large negative values in one channel and large positive values in other
 	// channels can result in a colour that appears darker and more saturated than
 	// desired after passing it through the inset matrix. For this reason, it is
@@ -334,32 +349,14 @@ vec3 tonemap_agx(vec3 color, float white, float lowClip, float contrast) {
 			-0.85585845117807513559, 1.3264510741502356555, -0.23822464068860595117,
 			-0.10886710826831608324, -0.027084020983874825605, 1.402665347143271889);
 
-	// CPU side calculations:
-
-	// allenwp curve parameters
-	const float midOut = 0.18;
-	float midIn = midOut - lowClip;
-
-	float toe_a = -1.0 * ((pow(midIn, contrast) * (midOut - 1.0)) / midOut);
-	// Slope formula is simply the derivative of the toe function with an input of midIn
-	float slope_a = pow(midIn, contrast) + toe_a;
-	float slope = (contrast * pow(midIn, contrast - 1.0) * toe_a) / (slope_a * slope_a);
-
-	float shoulderMaxVal = params.output_max_value - midOut;
-	float w = white - midIn;
-	w = w * w;
-	w = w / shoulderMaxVal;
-
-	// GPU side calculations:
-
 	// Apply inset matrix.
 	// Although this could be separated such that other colour spaces could be used,
 	// all inset and outset matrix configurations were done subjectively by eye
 	// based on an sRGB representation, so I doubt that this matrix can be trusted
-	// for final colour spaces other than Rec709 primaries.
+	// for final output colour spaces other than Rec709 primaries.
 	color = srgb_to_rec2020_agx_inset_matrix * color;
 
-	color = allenwp_curve(color, contrast, midIn, midOut, slope, shoulderMaxVal, w, toe_a);
+	color = allenwp_curve(color);
 
 	// Clipping to max_out is required to address a cyan colour that occurs with very bright inputs.
 	// Clipped slightly higher than max_out (1.001) to ensure max_out is always reached after the outset matrix is applied:
@@ -375,26 +372,8 @@ vec3 tonemap_agx(vec3 color, float white, float lowClip, float contrast) {
 }
 
 // TODO: hook this up
-vec3 tonemap_adjustable(vec3 color, float white, float lowClip, float contrast) {
-	// CPU side calculations:
-
-	// allenwp curve parameters
-	const float midOut = 0.18;
-	float midIn = midOut - lowClip;
-
-	float toe_a = -1.0 * ((pow(midIn, contrast) * (midOut - 1.0)) / midOut);
-	// Slope formula is simply the derivative of the toe function with an input of midIn
-	float slope_a = pow(midIn, contrast) + toe_a;
-	float slope = (contrast * pow(midIn, contrast - 1.0) * toe_a) / (slope_a * slope_a);
-
-	float shoulderMaxVal = params.output_max_value - midOut;
-	float w = white - midIn;
-	w = w * w;
-	w = w / shoulderMaxVal;
-
-	// GPU side calculations:
-
-	return allenwp_curve(color, contrast, midIn, midOut, slope, shoulderMaxVal, w, toe_a);
+vec3 tonemap_adjustable(vec3 color) {
+	return allenwp_curve(color);
 }
 
 vec3 linear_to_srgb(vec3 color) {
@@ -410,7 +389,7 @@ vec3 linear_to_srgb(vec3 color) {
 #define TONEMAPPER_ACES 3
 #define TONEMAPPER_AGX 4
 
-vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
+vec3 apply_tonemapping(vec3 color) { // inputs are LINEAR
 	// Ensure color values passed to tonemappers are positive.
 	// They can be negative in the case of negative lights, which leads to undesired behavior.
 	// Linear is special: it always passes through with no adjustments.
@@ -419,21 +398,19 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR
 		return color;
 	}
 
-	float lowClip = 0.0; // TODO: user parameter
-
-	color = max(vec3(lowClip), color);
-	color -= lowClip;
+	color = max(vec3(params.tonemap_black), color);
+	color -= params.tonemap_black;
 
 	if (params.tonemapper == TONEMAPPER_REINHARD) {
-		return tonemap_reinhard(color, white);
+		return tonemap_reinhard(color, params.tonemap_a);
 	} else if (params.tonemapper == TONEMAPPER_FILMIC) {
 		// Filmic is SDR only because of the white parameter implementation.
-		return tonemap_filmic(color, white);
+		return tonemap_filmic(color, params.tonemap_a);
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
 		// ACES is SDR only because of the white parameter implementation.
-		return tonemap_aces(color, white);
+		return tonemap_aces(color, params.tonemap_a);
 	} else { // TONEMAPPER_AGX
-		return tonemap_agx(color, white, lowClip, 1.25652780401491); // TODO: contrast user parameter
+		return tonemap_agx(color);
 	}
 }
 
@@ -962,7 +939,7 @@ void main() {
 	}
 #endif
 
-	color.rgb = apply_tonemapping(color.rgb, params.white);
+	color.rgb = apply_tonemapping(color.rgb);
 
 	if (bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
 		color.rgb = linear_to_srgb(color.rgb); // Regular linear -> SRGB conversion.
@@ -976,7 +953,7 @@ void main() {
 		}
 
 		// high dynamic range -> SRGB
-		glow = apply_tonemapping(glow, params.white);
+		glow = apply_tonemapping(glow);
 		if (bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
 			glow = linear_to_srgb(glow);
 		}

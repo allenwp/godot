@@ -208,21 +208,6 @@ void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::Environm
 	ERR_FAIL_NULL(env);
 	env->exposure = p_exposure;
 	env->tone_mapper = p_tone_mapper;
-	if (p_tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
-		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
-		// nonlinear scaling ratio between channels. This is important for AgX to
-		// give a similar appearance across different maxVal, but it means that
-		// input values must be higher to achieve the full maxVal output.
-		p_white *= env->max_value;
-	} else if (p_tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && env->max_value != 1.0) { // TODO: env->max_value != 1.0 is a temp hack. This should only happen when HDR is enabled.
-		p_white = MAX(p_white, env->max_value);
-	} // else if (p_tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
-	//	p_white = MAX(p_white, env->max_value);
-	// }
-
-	float lowClip = 0.0; // TODO: user parameter
-	p_white -= lowClip;
-
 	env->white = p_white;
 }
 
@@ -254,6 +239,69 @@ float RendererEnvironmentStorage::environment_get_max_value(RID p_env) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
 	return env->max_value;
+}
+
+RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::environment_get_tonemap_parameters(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, TonemapParameters());
+	RendererEnvironmentStorage::TonemapParameters params;
+
+	if (env->tone_mapper == RS::ENV_TONE_MAPPER_LINEAR) {
+		return params;
+	}
+
+	float white = env->white;
+	// Variable EDR (HDR) compatible tonemappers must have their white parameter constrained or adjusted
+	// to ensure reasonable behavior across all ranges of env->max_value (such as white == 3.0 and
+	// max_value == 5.0):
+	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && env->max_value != 1.0) { // TODO: env->max_value != 1.0 is a temp hack. This should only happen when HDR is enabled.
+		// TODO: also do this for p_tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE
+		white = MAX(white, env->max_value);
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
+		// nonlinear scaling ratio between channels. This is important for AgX to
+		// give a similar appearance across different maxVal, but it means that
+		// input values must be higher to achieve the full maxVal output.
+		float white = env->white * env->max_value;
+	}
+
+	white -= env->black;
+
+	params.tonemap_black = env->black;
+	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD) {
+		params.tonemap_a = white;
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_FILMIC) {
+		params.tonemap_a = white;
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ACES) {
+		params.tonemap_a = white;
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+		// allenwp curve parameters
+		const float crossoverPoint = 0.18;
+		const float brightness = 0.0; // AgX doesn't support brightness adjustment
+
+		float midIn = crossoverPoint - env->black;
+		float midOut = crossoverPoint + brightness;
+
+		float toe_a = -1.0 * ((pow(midIn, env->tonemap_contrast) * (midOut - 1.0)) / midOut);
+		// Slope formula is simply the derivative of the toe function with an input of midIn
+		float slope_a = pow(midIn, env->tonemap_contrast) + toe_a;
+		float slope = (env->tonemap_contrast * pow(midIn, env->tonemap_contrast - 1.0) * toe_a) / (slope_a * slope_a);
+
+		float shoulderMaxVal = env->max_value - midOut;
+		float w = white - midIn;
+		w = w * w;
+		w = w / shoulderMaxVal;
+
+		params.tonemap_a = env->tonemap_contrast;
+		params.tonemap_b = midIn;
+		params.tonemap_c = midOut;
+		params.tonemap_d = slope;
+		params.tonemap_e = shoulderMaxVal;
+		params.tonemap_f = w;
+		params.tonemap_g = toe_a;
+	}
+
+	return params;
 }
 
 // Fog
