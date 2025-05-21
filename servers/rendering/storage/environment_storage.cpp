@@ -279,7 +279,7 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		// nonlinear scaling ratio between channels. This is important for AgX to
 		// give a similar appearance across different maxVal, but it means that
 		// input values must be higher to achieve the full maxVal output.
-		float white = env->white * env->max_value;
+		white = white * env->max_value;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
 		// Unlike Reinhard, which historically could be set to less than 1.0 for SDR,
 		// the adjustable tonemapper was introduced with HDR support and behaves the
