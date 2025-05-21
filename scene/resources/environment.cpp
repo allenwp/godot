@@ -245,15 +245,6 @@ float Environment::get_tonemap_contrast() const {
 	return tonemap_contrast;
 }
 
-void Environment::set_tonemap_brightness(float p_brightness) {
-	tonemap_brightness = p_brightness;
-	_update_tonemap();
-}
-
-float Environment::get_tonemap_brightness() const {
-	return tonemap_brightness;
-}
-
 void Environment::_update_tonemap() {
 	RS::get_singleton()->environment_set_tonemap(
 			environment,
@@ -261,8 +252,7 @@ void Environment::_update_tonemap() {
 			tonemap_exposure,
 			tonemap_white,
 			tonemap_black,
-			tonemap_contrast,
-			tonemap_brightness);
+			tonemap_contrast);
 }
 
 // SSR
@@ -1162,10 +1152,6 @@ void Environment::_validate_property(PropertyInfo &p_property) const {
 		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 	}
 
-	if (p_property.name == "tonemap_brightness" && tone_mapper != TONE_MAPPER_ADJUSTABLE) {
-		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
-	}
-
 	if (p_property.name == "glow_intensity" && glow_blend_mode == GLOW_BLEND_MODE_MIX) {
 		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 	}
@@ -1319,8 +1305,6 @@ void Environment::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_tonemap_black"), &Environment::get_tonemap_black);
 	ClassDB::bind_method(D_METHOD("set_tonemap_contrast", "contrast"), &Environment::set_tonemap_contrast);
 	ClassDB::bind_method(D_METHOD("get_tonemap_contrast"), &Environment::get_tonemap_contrast);
-	ClassDB::bind_method(D_METHOD("set_tonemap_brightness", "brightness"), &Environment::set_tonemap_brightness);
-	ClassDB::bind_method(D_METHOD("get_tonemap_brightness"), &Environment::get_tonemap_brightness);
 
 	ADD_GROUP("Tonemap", "tonemap_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "tonemap_mode", PROPERTY_HINT_ENUM, "Linear,Reinhard,Filmic,ACES,AgX,Adjustable"), "set_tonemapper", "get_tonemapper");
@@ -1328,7 +1312,6 @@ void Environment::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "tonemap_white", PROPERTY_HINT_RANGE, "0.01,16,0.01"), "set_tonemap_white", "get_tonemap_white");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "tonemap_black", PROPERTY_HINT_RANGE, "0.0,0.15,0.001"), "set_tonemap_black", "get_tonemap_black");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "tonemap_contrast", PROPERTY_HINT_RANGE, "0.01,5,0.01"), "set_tonemap_contrast", "get_tonemap_contrast");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "tonemap_brightness", PROPERTY_HINT_RANGE, "-0.9,0.9,0.01"), "set_tonemap_brightness", "get_tonemap_brightness");
 
 	// SSR
 

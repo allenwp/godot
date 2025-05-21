@@ -203,7 +203,7 @@ int RendererEnvironmentStorage::environment_get_camera_feed_id(RID p_env) const 
 
 // Tonemap
 
-void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, float p_black, float p_contrast, float p_brightness) {
+void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, float p_black, float p_contrast) {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL(env);
 	env->exposure = p_exposure;
@@ -211,7 +211,6 @@ void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::Environm
 	env->white = p_white;
 	env->black = p_black;
 	env->tonemap_contrast = p_contrast;
-	env->tonemap_brightness = p_brightness;
 }
 
 void RendererEnvironmentStorage::environment_set_max_value(RID p_env, float p_max_value) {
@@ -250,12 +249,6 @@ float RendererEnvironmentStorage::environment_get_tonemap_contrast(RID p_env) co
 	return env->tonemap_contrast;
 }
 
-float RendererEnvironmentStorage::environment_get_tonemap_brightness(RID p_env) const {
-	Environment *env = environment_owner.get_or_null(p_env);
-	ERR_FAIL_NULL_V(env, 1.0);
-	return env->tonemap_brightness;
-}
-
 float RendererEnvironmentStorage::environment_get_max_value(RID p_env) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
@@ -272,10 +265,14 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 	}
 
 	float white = env->white;
+	float hdr_enabled = env->max_value != 1.0; // TODO: env->max_value != 1.0 is a temp hack. This should read from whether HDR is enabled... for the window?
 	// Variable EDR (HDR) compatible tonemappers must have their white parameter constrained or adjusted
 	// to ensure reasonable behavior across all ranges of env->max_value (such as white == 3.0 and
 	// max_value == 5.0):
-	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && env->max_value != 1.0) { // TODO: env->max_value != 1.0 is a temp hack. This should only happen when HDR is enabled.
+	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && hdr_enabled) {
+		// For Reinhard to behave correctly in SDR and HDR, the white parameter can't
+		// be lower than max_val, but historically it was able to be set lower than max_val,
+		// so we only put this restriction in place when operating in HDR mode.
 		white = MAX(white, env->max_value);
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
 		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
@@ -302,11 +299,10 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX || env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
 		// allenwp curve parameters
 		const float crossoverPoint = 0.18;
-		float brightness = 0.0; // AgX doesn't support brightness adjustment
-
-		if (env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
-			brightness = env->tonemap_brightness;
-		}
+		// Brightness adjustments generally look better by simply adjusting exposure, so hardcode brightness to 0.0.
+		// Additionally, adjustments to exposure and contrast are more "scientifically" correct in the world of
+		// colour science for all but flair compensation, which is already mostly handled by the black parameter.
+		const float brightness = 0.0;
 
 		float midIn = crossoverPoint - env->black;
 		float midOut = crossoverPoint + brightness;
