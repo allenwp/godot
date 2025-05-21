@@ -274,6 +274,12 @@ public:
 	float get_tonemap_exposure() const;
 	void set_tonemap_white(float p_white);
 	float get_tonemap_white() const;
+	void set_tonemap_black(float p_black);
+	float get_tonemap_black() const;
+	void set_tonemap_contrast(float p_contrast);
+	float get_tonemap_contrast() const;
+	void set_tonemap_brightness(float p_brightness);
+	float get_tonemap_brightness() const;
 
 	// SSR
 	void set_ssr_enabled(bool p_enabled);

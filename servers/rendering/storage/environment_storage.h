@@ -216,11 +216,14 @@ public:
 	RS::EnvironmentReflectionSource environment_get_reflection_source(RID p_env) const;
 
 	// Tonemap
-	void environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white);
+	void environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, float p_black, float p_contrast, float p_brightness);
 	void environment_set_max_value(RID p_env, float p_max_value);
 	RS::EnvironmentToneMapper environment_get_tone_mapper(RID p_env) const;
 	float environment_get_exposure(RID p_env) const;
 	float environment_get_white(RID p_env) const;
+	float environment_get_black(RID p_env) const;
+	float environment_get_tonemap_contrast(RID p_env) const;
+	float environment_get_tonemap_brightness(RID p_env) const;
 	float environment_get_max_value(RID p_env) const;
 	TonemapParameters environment_get_tonemap_parameters(RID p_env) const;
 

@@ -203,12 +203,15 @@ int RendererEnvironmentStorage::environment_get_camera_feed_id(RID p_env) const 
 
 // Tonemap
 
-void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white) {
+void RendererEnvironmentStorage::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, float p_black, float p_contrast, float p_brightness) {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL(env);
 	env->exposure = p_exposure;
 	env->tone_mapper = p_tone_mapper;
 	env->white = p_white;
+	env->black = p_black;
+	env->tonemap_contrast = p_contrast;
+	env->tonemap_brightness = p_brightness;
 }
 
 void RendererEnvironmentStorage::environment_set_max_value(RID p_env, float p_max_value) {
@@ -233,6 +236,24 @@ float RendererEnvironmentStorage::environment_get_white(RID p_env) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
 	return env->white;
+}
+
+float RendererEnvironmentStorage::environment_get_black(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, 1.0);
+	return env->black;
+}
+
+float RendererEnvironmentStorage::environment_get_tonemap_contrast(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, 1.0);
+	return env->tonemap_contrast;
+}
+
+float RendererEnvironmentStorage::environment_get_tonemap_brightness(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, 1.0);
+	return env->tonemap_brightness;
 }
 
 float RendererEnvironmentStorage::environment_get_max_value(RID p_env) const {
