@@ -276,7 +276,6 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 	// to ensure reasonable behavior across all ranges of env->max_value (such as white == 3.0 and
 	// max_value == 5.0):
 	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD && env->max_value != 1.0) { // TODO: env->max_value != 1.0 is a temp hack. This should only happen when HDR is enabled.
-		// TODO: also do this for p_tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE
 		white = MAX(white, env->max_value);
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
 		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
@@ -284,6 +283,11 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		// give a similar appearance across different maxVal, but it means that
 		// input values must be higher to achieve the full maxVal output.
 		float white = env->white * env->max_value;
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
+		// Unlike Reinhard, which historically could be set to less than 1.0 for SDR,
+		// the adjustable tonemapper was introduced with HDR support and behaves the
+		// same for SDR and HDR.
+		white = MAX(white, env->max_value);
 	}
 
 	white -= env->black;
@@ -295,10 +299,14 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		params.tonemap_a = white;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ACES) {
 		params.tonemap_a = white;
-	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX || env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
 		// allenwp curve parameters
 		const float crossoverPoint = 0.18;
-		const float brightness = 0.0; // AgX doesn't support brightness adjustment
+		float brightness = 0.0; // AgX doesn't support brightness adjustment
+
+		if (env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
+			brightness = env->tonemap_brightness;
+		}
 
 		float midIn = crossoverPoint - env->black;
 		float midOut = crossoverPoint + brightness;

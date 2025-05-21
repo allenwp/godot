@@ -371,7 +371,6 @@ vec3 tonemap_agx(vec3 color) {
 	return color;
 }
 
-// TODO: hook this up
 vec3 tonemap_adjustable(vec3 color) {
 	return allenwp_curve(color);
 }
@@ -388,6 +387,7 @@ vec3 linear_to_srgb(vec3 color) {
 #define TONEMAPPER_FILMIC 2
 #define TONEMAPPER_ACES 3
 #define TONEMAPPER_AGX 4
+#define TONEMAPPER_ADJUSTABLE 5
 
 vec3 apply_tonemapping(vec3 color) { // inputs are LINEAR
 	// Ensure color values passed to tonemappers are positive.
@@ -409,8 +409,10 @@ vec3 apply_tonemapping(vec3 color) { // inputs are LINEAR
 	} else if (params.tonemapper == TONEMAPPER_ACES) {
 		// ACES is SDR only because of the white parameter implementation.
 		return tonemap_aces(color, params.tonemap_a);
-	} else { // TONEMAPPER_AGX
+	} else if (params.tonemapper == TONEMAPPER_AGX) {
 		return tonemap_agx(color);
+	} else { // TONEMAPPER_ADJUSTABLE
+		return tonemap_adjustable(color);
 	}
 }
 
