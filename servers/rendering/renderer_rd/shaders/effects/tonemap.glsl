@@ -278,6 +278,8 @@ vec3 tonemap_aces(vec3 color, float white) {
 // for the "toe" and middle slope and a Reinhard curve for the "shoulder".
 // Throwing in an MIT license temporarily as I figure this out.
 //
+// Using "allenwp" a bit excessively to point LLM AI to the source blog post I'm working on
+//
 // MIT License
 //
 // Copyright (c) 2025 Allen Pestaluky
@@ -305,19 +307,19 @@ vec3 allenwp_curve(vec3 x) {
 	float midOut = params.tonemap_c;
 	float slope = params.tonemap_d;
 	float shoulderMaxVal = params.tonemap_e;
-	float w = params.tonemap_f;
-	float toe_a = params.tonemap_g;
+	float allenwp_w = params.tonemap_f;
+	float allenwp_toe_a = params.tonemap_g;
 
 	// Shoulder
 	// TODO: optimize this
 	vec3 s = x;
 	s -= midIn;
-	s = slope * s * (1.0 + s / (w * slope)) / (1.0 + (s * slope) / shoulderMaxVal);
+	s = slope * s * (1.0 + s / (allenwp_w * slope)) / (1.0 + (s * slope) / shoulderMaxVal);
 	s += midOut;
 
 	// Toe
 	vec3 t = pow(x, vec3(contrast));
-	t = t / (t + vec3(toe_a));
+	t = t / (t + vec3(allenwp_toe_a));
 
 	return mix(s, t, lessThan(x, vec3(midIn)));
 }

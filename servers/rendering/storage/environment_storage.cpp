@@ -297,20 +297,20 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ACES) {
 		params.tonemap_a = white;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX || env->tone_mapper == RS::ENV_TONE_MAPPER_ADJUSTABLE) {
-		// allenwp curve parameters
-		const float crossoverPoint = 0.18;
+		// allenwp curve parameters should be computed on the CPU
+		const float crossover_point = 0.18; // 18% "middle gray" is perceptually 50% of the brightness of reference white
 		// Brightness adjustments generally look better by simply adjusting exposure, so hardcode brightness to 0.0.
 		// Additionally, adjustments to exposure and contrast are more "scientifically" correct in the world of
 		// colour science for all but flair compensation, which is already mostly handled by the black parameter.
 		const float brightness = 0.0;
 
-		float midIn = crossoverPoint - env->black;
-		float midOut = crossoverPoint + brightness;
+		float midIn = crossover_point - env->black;
+		float midOut = crossover_point + brightness;
 
-		float toe_a = -1.0 * ((pow(midIn, env->tonemap_contrast) * (midOut - 1.0)) / midOut);
+		float allenwp_toe_a = -1.0 * ((pow(midIn, env->tonemap_contrast) * (midOut - 1.0)) / midOut);
 		// Slope formula is simply the derivative of the toe function with an input of midIn
-		float slope_a = pow(midIn, env->tonemap_contrast) + toe_a;
-		float slope = (env->tonemap_contrast * pow(midIn, env->tonemap_contrast - 1.0) * toe_a) / (slope_a * slope_a);
+		float slope_a = pow(midIn, env->tonemap_contrast) + allenwp_toe_a;
+		float slope = (env->tonemap_contrast * pow(midIn, env->tonemap_contrast - 1.0) * allenwp_toe_a) / (slope_a * slope_a);
 
 		float shoulderMaxVal = env->max_value - midOut;
 		float w = white - midIn;
@@ -323,7 +323,7 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		params.tonemap_d = slope;
 		params.tonemap_e = shoulderMaxVal;
 		params.tonemap_f = w;
-		params.tonemap_g = toe_a;
+		params.tonemap_g = allenwp_toe_a;
 	}
 
 	return params;
