@@ -315,13 +315,14 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 
 		float allenwp_toe_a = -1.0 * ((pow(midIn, env->tonemap_contrast) * (midOut - 1.0)) / midOut);
 		// Slope formula is simply the derivative of the toe function with an input of midIn
-		float slope_a = pow(midIn, env->tonemap_contrast) + allenwp_toe_a;
-		float slope = (env->tonemap_contrast * pow(midIn, env->tonemap_contrast - 1.0) * allenwp_toe_a) / (slope_a * slope_a);
+		float slope_denom = pow(midIn, env->tonemap_contrast) + allenwp_toe_a;
+		float slope = (env->tonemap_contrast * pow(midIn, env->tonemap_contrast - 1.0) * allenwp_toe_a) / (slope_denom * slope_denom);
 
 		float shoulderMaxVal = env->max_value - midOut;
 		float w = white - midIn;
 		w = w * w;
 		w = w / shoulderMaxVal;
+		w = w * slope;
 
 		params.tonemap_a = env->tonemap_contrast;
 		params.tonemap_b = midIn;

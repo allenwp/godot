@@ -311,15 +311,14 @@ vec3 allenwp_curve(vec3 x) {
 	float allenwp_toe_a = params.tonemap_g;
 
 	// Shoulder
-	// TODO: optimize this
-	vec3 s = x;
-	s -= midIn;
-	s = slope * s * (1.0 + s / (allenwp_w * slope)) / (1.0 + (s * slope) / shoulderMaxVal);
+	vec3 s = x - midIn;
+	vec3 slope_s = slope * s;
+	s = slope_s * (1.0 + s / allenwp_w) / (1.0 + (slope_s / shoulderMaxVal));
 	s += midOut;
 
 	// Toe
 	vec3 t = pow(x, vec3(contrast));
-	t = t / (t + vec3(allenwp_toe_a));
+	t = t / (t + allenwp_toe_a);
 
 	return mix(s, t, lessThan(x, vec3(midIn)));
 }
