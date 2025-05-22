@@ -275,6 +275,12 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		// so we only put this restriction in place when operating in HDR mode.
 		white = MAX(white, env->max_value);
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+		// First match Adjustable tonemapper behavior to ensure that AgX behaves reasonably.
+		// Because white will also be scaling by max_value this is not stricktly necessary,
+		// but it makes for a better and more consistent user experience when comparing
+		// against the Adjustable tonemapper in SDR.
+		white = MAX(white, env->max_value);
+
 		// By scaling white based on maxVal, the Reinhard shoulder maintains a similar
 		// nonlinear scaling ratio between channels. This is important for AgX to
 		// give a similar appearance across different maxVal, but it means that
