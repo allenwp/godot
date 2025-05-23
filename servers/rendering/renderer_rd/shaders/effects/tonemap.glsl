@@ -399,8 +399,21 @@ vec3 apply_tonemapping(vec3 color) { // inputs are LINEAR
 		return color;
 	}
 
-	color = max(vec3(params.tonemap_black), color);
-	color -= params.tonemap_black;
+	color = max(vec3(0.0), color);
+
+	// Entirely unoptimized demonstration of a CIE-correct "black" parameter
+	mat3 linear_sRGB_to_XYZ = transpose(mat3(
+		0.4338873456, 0.3762240091, 0.1898886453,
+		0.2126390059, 0.7151686788, 0.0721923154,
+		0.0177500401, 0.1094476209, 0.8728023391));
+	vec3 XYZ = linear_sRGB_to_XYZ * color;
+	vec2 xy = vec2(XYZ.x / (XYZ.x + XYZ.y + XYZ.z), XYZ.y / (XYZ.x + XYZ.y + XYZ.z));
+	XYZ.y = max(params.tonemap_black, XYZ.y);
+	XYZ.y -= params.tonemap_black;
+	XYZ.x = XYZ.y * (xy.x / xy.y);
+	XYZ.z = XYZ.y * ((1.0 - xy.x - xy.y) / xy.y);
+	color = inverse(linear_sRGB_to_XYZ) * XYZ;
+	color = max(vec3(0.0), color); // Account for when math goes weird with 0.0 input
 
 	if (params.tonemapper == TONEMAPPER_REINHARD) {
 		return tonemap_reinhard(color, params.tonemap_a);
