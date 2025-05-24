@@ -322,6 +322,29 @@ vec3 allenwp_curve(vec3 x) {
 
 	return mix(s, t, lessThan(x, vec3(midIn)));
 }
+float allenwp_curve_single(float x) {
+	float contrast = params.tonemap_a;
+	float midIn = params.tonemap_b;
+	float midOut = params.tonemap_c;
+	float slope = params.tonemap_d;
+	float shoulderMaxVal = params.tonemap_e;
+	float allenwp_w = params.tonemap_f;
+	float allenwp_toe_a = params.tonemap_g;
+
+	if (x < midIn) {
+		// Toe
+		float t = pow(x, contrast);
+		t = t / (t + allenwp_toe_a);
+		return t;
+	} else {
+		// Shoulder
+		float s = x - midIn;
+		float slope_s = slope * s;
+		s = slope_s * (1.0 + s / allenwp_w) / (1.0 + (slope_s / shoulderMaxVal));
+		s += midOut;
+		return s;
+	}
+}
 
 // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
 // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
@@ -376,6 +399,21 @@ vec3 tonemap_adjustable(vec3 color) {
 	return allenwp_curve(color);
 }
 
+vec3 tonemap_adjustable_luminance(vec3 color) {
+	mat3 linear_sRGB_to_XYZ = transpose(mat3(
+		0.4338873456, 0.3762240091, 0.1898886453,
+		0.2126390059, 0.7151686788, 0.0721923154,
+		0.0177500401, 0.1094476209, 0.8728023391));
+	vec3 XYZ = linear_sRGB_to_XYZ * color;
+	vec2 xy = vec2(XYZ.x / (XYZ.x + XYZ.y + XYZ.z), XYZ.y / (XYZ.x + XYZ.y + XYZ.z));
+	XYZ.y = allenwp_curve_single(XYZ.y);
+	XYZ.x = XYZ.y * (xy.x / xy.y);
+	XYZ.z = XYZ.y * ((1.0 - xy.x - xy.y) / xy.y);
+	color = inverse(linear_sRGB_to_XYZ) * XYZ;
+	color = max(vec3(0.0), color); // Account for when math goes weird with 0.0 input
+	return color;
+}
+
 vec3 linear_to_srgb(vec3 color) {
 	//if going to srgb, clamp from 0 to 1.
 	color = clamp(color, vec3(0.0), vec3(1.0));
@@ -424,9 +462,10 @@ vec3 apply_tonemapping(vec3 color) { // inputs are LINEAR
 		// ACES is SDR only because of the white parameter implementation.
 		return tonemap_aces(color, params.tonemap_a);
 	} else if (params.tonemapper == TONEMAPPER_AGX) {
-		return tonemap_agx(color);
-	} else { // TONEMAPPER_ADJUSTABLE
 		return tonemap_adjustable(color);
+		//return tonemap_agx(color);
+	} else { // TONEMAPPER_ADJUSTABLE
+		return tonemap_adjustable_luminance(color);
 	}
 }
 
