@@ -61,3 +61,10 @@ GH-111439
 Validate extension JSON: Error: Field 'classes/FileDialog/methods/add_filter/arguments': size changed value in new API, from 2 to 3.
 
 Optional argument added. Compatibility method registered.
+
+
+GH-106940
+---------
+Validate extension JSON: Error: Field 'classes/RenderingServer/methods/environment_set_tonemap/arguments': size changed value in new API, from 4 to 5.
+
+Added optional "contrast" argument to environment_set_tonemap method in RenderingServer class. Compatibility method registered.

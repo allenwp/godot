@@ -140,7 +140,7 @@ void main() {
 #endif // USE_GLOW
 
 	color.rgb = srgb_to_linear(color.rgb);
-	color.rgb = apply_tonemapping(color.rgb, white);
+	color.rgb = apply_tonemapping(color.rgb);
 	color.rgb = linear_to_srgb(color.rgb);
 
 #ifdef USE_BCS
