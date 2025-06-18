@@ -331,7 +331,12 @@ vec3 linear_to_srgb(vec3 color) {
 	//if going to srgb, clamp from 0 to 1.
 	color = clamp(color, vec3(0.0), vec3(1.0));
 	const vec3 a = vec3(0.055f);
-	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
+	return mix(12.92f * color.rgb, (vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, greaterThan(color.rgb, vec3(0.0031308f)));
+}
+
+vec3 srgb_to_linear(vec3 color) {
+	const vec3 a = vec3(0.055f);
+	return mix(color.rgb / 12.92f, pow((color.rgb + a) / (vec3(1.0f) + a), vec3(2.4f)), greaterThan(color.rgb, vec3(0.04045f)));
 }
 
 #define TONEMAPPER_LINEAR 0
@@ -422,8 +427,8 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 }
 
 vec3 apply_bcs(vec3 color, vec3 bcs) {
-	color = mix(vec3(0.0f), color, bcs.x);
-	color = mix(vec3(0.5f), color, bcs.y);
+	color = color * bcs.x;
+	color = mix(vec3(0.1841865f), color, bcs.y); // Pivot around CIELAB 18% middle gray
 	color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
 
 	return color;
@@ -818,9 +823,11 @@ vec3 do_fxaa(vec3 color, float exposure, vec2 uv_interp) {
 // NOTE: `frag_coord` is in pixels (i.e. not normalized UV).
 vec3 screen_space_dither(vec2 frag_coord) {
 	// Iestyn's RGB dither (7 asm instructions) from Portal 2 X360, slightly modified for VR.
+	// Removed the time component to avoid passing time into this shader.
 	vec3 dither = vec3(dot(vec2(171.0, 231.0), frag_coord));
 	dither.rgb = fract(dither.rgb / vec3(103.0, 71.0, 97.0));
 
+	// Divide by 255 to align to 8-bit sRGB quantization and use dither strength of 100% rather than 37.5%.
 	// Subtract 0.5 to avoid slightly brightening the whole viewport.
 	return (dither.rgb - 0.5) / 255.0;
 }
@@ -865,10 +872,6 @@ void main() {
 #endif
 
 	color.rgb = apply_tonemapping(color.rgb, params.white);
-
-	if (bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
-		color.rgb = linear_to_srgb(color.rgb); // Regular linear -> SRGB conversion.
-	}
 #ifndef SUBPASS
 	// Glow
 	if (bool(params.flags & FLAG_USE_GLOW) && params.glow_mode != GLOW_MODE_MIX) {
@@ -877,11 +880,7 @@ void main() {
 			glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
 		}
 
-		// high dynamic range -> SRGB
 		glow = apply_tonemapping(glow, params.white);
-		if (bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
-			glow = linear_to_srgb(glow);
-		}
 
 		color.rgb = apply_glow(color.rgb, glow);
 	}
@@ -893,14 +892,25 @@ void main() {
 		color.rgb = apply_bcs(color.rgb, params.bcs);
 	}
 
-	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
-		color.rgb = apply_color_correction(color.rgb);
-	}
+	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION) || bool(params.flags & FLAG_USE_DEBANDING)) {
+		// apply_color_correction and screen_space_dither are designed for sRGB encoding
+		color.rgb = linear_to_srgb(color.rgb);
 
-	if (bool(params.flags & FLAG_USE_DEBANDING)) {
-		// Debanding should be done at the end of tonemapping, but before writing to the LDR buffer.
-		// Otherwise, we're adding noise to an already-quantized image.
-		color.rgb += screen_space_dither(gl_FragCoord.xy);
+		if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
+			color.rgb = apply_color_correction(color.rgb);
+		}
+
+		if (bool(params.flags & FLAG_USE_DEBANDING)) {
+			// Debanding should be done at the end of tonemapping, but before writing to the LDR buffer.
+			// Otherwise, we're adding noise to an already-quantized image.
+			color.rgb += screen_space_dither(gl_FragCoord.xy);
+		}
+
+		if (!bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
+			color.rgb = srgb_to_linear(color.rgb);
+		}
+	} else if (bool(params.flags & FLAG_CONVERT_TO_SRGB)) {
+		color.rgb = linear_to_srgb(color.rgb);
 	}
 
 	frag_color = color;
