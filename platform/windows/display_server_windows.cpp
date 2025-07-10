@@ -1147,6 +1147,24 @@ static BOOL CALLBACK _MonitorEnumProcCount(HMONITOR hMonitor, HDC hdcMonitor, LP
 	return TRUE;
 }
 
+static BOOL CALLBACK _MonitorEnumProcMonitor(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+	EnumScreenData *data = (EnumScreenData *)dwData;
+
+	if (data->screen == data->count) {
+		data->monitor = hMonitor;
+		return FALSE;
+	}
+
+	data->count++;
+	return TRUE;
+}
+
+static HMONITOR _get_hmonitor_of_screen(int p_screen) {
+	EnumScreenData data = { 0, p_screen, nullptr };
+	EnumDisplayMonitors(nullptr, nullptr, _MonitorEnumProcMonitor, (LPARAM)&data);
+	return data.monitor;
+}
+
 int DisplayServerWindows::get_screen_count() const {
 	_THREAD_SAFE_METHOD_
 
@@ -1527,7 +1545,7 @@ Ref<Image> DisplayServerWindows::screen_get_image_rect(const Rect2i &p_rect) con
 }
 
 #ifdef D3D12_ENABLED
-static bool _get_screen_desc(int p_screen, DXGI_OUTPUT_DESC1 &r_Desc) {
+static bool _get_monitor_desc(HMONITOR p_monitor, DXGI_OUTPUT_DESC1 &r_Desc) {
 	ComPtr<IDXGIFactory4> dxgi_factory;
 	r_Desc = {};
 
@@ -1542,27 +1560,27 @@ static bool _get_screen_desc(int p_screen, DXGI_OUTPUT_DESC1 &r_Desc) {
 	}
 
 	UINT i = 0;
-	ComPtr<IDXGIOutput> screenOutput;
-	while (dxgiAdapter->EnumOutputs(i, &screenOutput) != DXGI_ERROR_NOT_FOUND) {
-		if (i == (UINT)p_screen) {
-			break;
+	ComPtr<IDXGIOutput> dxgiOutput;
+	DXGI_OUTPUT_DESC1 desc1;
+	while (dxgiAdapter->EnumOutputs(i, &dxgiOutput) != DXGI_ERROR_NOT_FOUND) {
+		ComPtr<IDXGIOutput6> output6;
+		if (FAILED(dxgiOutput.As(&output6))) {
+			continue;
+		}
+
+		if (FAILED(output6->GetDesc1(&desc1))) {
+			continue;
+		}
+
+		if (desc1.Monitor == p_monitor) {
+			r_Desc = desc1;
+			return true;
 		}
 
 		i++;
 	}
 
-	ComPtr<IDXGIOutput6> output6;
-	if (FAILED(screenOutput.As(&output6))) {
-		return false;
-	}
-
-	DXGI_OUTPUT_DESC1 desc1;
-	if (FAILED(output6->GetDesc1(&desc1))) {
-		return false;
-	}
-
-	r_Desc = desc1;
-	return true;
+	return false;
 }
 #endif // D3D12_ENABLED
 
@@ -1571,8 +1589,12 @@ bool DisplayServerWindows::screen_is_hdr_supported(int p_screen) const {
 
 	p_screen = _get_screen_index(p_screen);
 #ifdef D3D12_ENABLED
+	HMONITOR monitor = _get_hmonitor_of_screen(p_screen);
+	if (monitor == nullptr) {
+		return false;
+	}
 	DXGI_OUTPUT_DESC1 desc1;
-	if (!_get_screen_desc(p_screen, desc1)) {
+	if (!_get_monitor_desc(monitor, desc1)) {
 		return false;
 	}
 
@@ -1585,48 +1607,57 @@ bool DisplayServerWindows::screen_is_hdr_supported(int p_screen) const {
 float DisplayServerWindows::screen_get_min_luminance(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
+	const float default_return = 0.0f;
 	p_screen = _get_screen_index(p_screen);
 #ifdef D3D12_ENABLED
+	HMONITOR monitor = _get_hmonitor_of_screen(p_screen);
+	if (monitor == nullptr) {
+		return default_return;
+	}
 	DXGI_OUTPUT_DESC1 desc1;
-	if (!_get_screen_desc(p_screen, desc1)) {
-		return 0.0f;
+	if (!_get_monitor_desc(monitor, desc1)) {
+		return default_return;
 	}
 
 	return desc1.MinLuminance;
 #else
-	return 0.0f;
+	return default_return;
 #endif // D3D12_ENABLED
 }
 
 float DisplayServerWindows::screen_get_max_luminance(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
+	const float default_return = 0.0f;
 	p_screen = _get_screen_index(p_screen);
 #ifdef D3D12_ENABLED
+	HMONITOR monitor = _get_hmonitor_of_screen(p_screen);
 	DXGI_OUTPUT_DESC1 desc1;
-	if (!_get_screen_desc(p_screen, desc1)) {
-		return 0.0f;
+	if (!_get_monitor_desc(monitor, desc1)) {
+		return default_return;
 	}
 
 	return desc1.MaxLuminance;
 #else
-	return 0.0f;
+	return default_return;
 #endif // D3D12_ENABLED
 }
 
 float DisplayServerWindows::screen_get_max_full_frame_luminance(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
+	const float default_return = 0.0f;
 	p_screen = _get_screen_index(p_screen);
 #ifdef D3D12_ENABLED
+	HMONITOR monitor = _get_hmonitor_of_screen(p_screen);
 	DXGI_OUTPUT_DESC1 desc1;
-	if (!_get_screen_desc(p_screen, desc1)) {
-		return 0.0f;
+	if (!_get_monitor_desc(monitor, desc1)) {
+		return default_return;
 	}
 
 	return desc1.MaxFullFrameLuminance;
 #else
-	return 0.0f;
+	return default_return;
 #endif // D3D12_ENABLED
 }
 
@@ -1686,8 +1717,9 @@ static BOOL CALLBACK _MonitorEnumProcSdrWhiteLevel(HMONITOR hMonitor, HDC hdcMon
 float DisplayServerWindows::screen_get_sdr_white_level(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
+	const float default_return = 0.0f;
 	p_screen = _get_screen_index(p_screen);
-	EnumSdrWhiteLevelData data = { Vector<DISPLAYCONFIG_PATH_INFO>(), Vector<DISPLAYCONFIG_MODE_INFO>(), 0, p_screen, 0.0f };
+	EnumSdrWhiteLevelData data = { Vector<DISPLAYCONFIG_PATH_INFO>(), Vector<DISPLAYCONFIG_MODE_INFO>(), 0, p_screen, default_return };
 
 	uint32_t path_count = 0;
 	uint32_t mode_count = 0;
@@ -3309,8 +3341,9 @@ HWND DisplayServerWindows::_find_window_from_process_id(OS::ProcessID p_pid, HWN
 DisplayServerWindows::ScreenHdrData DisplayServerWindows::_get_screen_hdr_data(int p_screen) const {
 	ScreenHdrData data;
 #ifdef D3D12_ENABLED
+	HMONITOR monitor = _get_hmonitor_of_screen(p_screen);
 	DXGI_OUTPUT_DESC1 desc;
-	if (_get_screen_desc(p_screen, desc)) {
+	if (_get_monitor_desc(monitor, desc)) {
 		data.hdr_supported = desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 		data.min_luminance = desc.MinLuminance;
 		data.max_luminance = desc.MaxLuminance;
