@@ -82,9 +82,9 @@ layout(binding = 0) uniform sampler2D src_rt;
 #endif
 
 // Keep in sync with RenderingDeviceCommons::ColorSpace
-#define COLOR_SPACE_SRGB_LINEAR 0
-#define COLOR_SPACE_SRGB_NONLINEAR 1
-#define COLOR_SPACE_HDR10_ST2084 2
+#define COLOR_SPACE_REC709_LINEAR 0
+#define COLOR_SPACE_REC709_NONLINEAR_SRGB 1
+#define COLOR_SPACE_REC2020_NONLINEAR_ST2084 2
 
 vec3 srgb_to_linear(vec3 color) {
 	return mix(pow((color.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), color.rgb * (1.0 / 12.92), lessThan(color.rgb, vec3(0.04045)));
@@ -172,7 +172,7 @@ void main() {
 #endif
 
 	// Colorspace conversion for final blit
-	if (data.target_color_space == COLOR_SPACE_SRGB_LINEAR) {
+	if (data.target_color_space == COLOR_SPACE_REC709_LINEAR) {
 		// Negative values may be interpreted as scRGB colors,
 		// so clip them to the intended sRGB colors.
 		color.rgb = max(vec3(0.0), color.rgb);
@@ -183,7 +183,7 @@ void main() {
 
 		// Adjust brightness of SDR content to reference luminance
 		color.rgb *= data.reference_multiplier;
-	} else if (data.target_color_space == COLOR_SPACE_SRGB_NONLINEAR) {
+	} else if (data.target_color_space == COLOR_SPACE_REC709_NONLINEAR_SRGB) {
 		// Negative values will be clipped by the target, so no need to
 		// clip them here.
 		if (data.source_is_srgb == false) {
@@ -200,7 +200,7 @@ void main() {
 				color.rgb += screen_space_dither(gl_FragCoord.xy);
 			}
 		}
-	} else if (data.target_color_space == COLOR_SPACE_HDR10_ST2084) {
+	} else if (data.target_color_space == COLOR_SPACE_REC2020_NONLINEAR_ST2084) {
 		// Negative values may be interpreted as colors outside of sRGB,
 		// so clip them to the intended sRGB colors.
 		color.rgb = max(vec3(0.0), color.rgb);

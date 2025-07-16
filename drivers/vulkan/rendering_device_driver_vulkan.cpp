@@ -3583,11 +3583,11 @@ RDD::ColorSpace RenderingDeviceDriverVulkan::swap_chain_get_color_space(SwapChai
 	SwapChain *swap_chain = (SwapChain *)(p_swap_chain.id);
 	switch (swap_chain->color_space) {
 		case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
-			return COLOR_SPACE_SRGB_NONLINEAR;
+			return COLOR_SPACE_REC709_NONLINEAR_SRGB;
 		case VK_COLOR_SPACE_HDR10_ST2084_EXT:
-			return COLOR_SPACE_HDR10_ST2084;
+			return COLOR_SPACE_REC2020_NONLINEAR_ST2084;
 		case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
-			return COLOR_SPACE_SRGB_LINEAR;
+			return COLOR_SPACE_REC709_LINEAR;
 		default:
 			DEV_ASSERT(false && "Unknown swap chain color space.");
 			return COLOR_SPACE_MAX;

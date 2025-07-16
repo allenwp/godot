@@ -316,9 +316,9 @@ const RenderingDeviceDriverD3D12::D3D12Format RenderingDeviceDriverD3D12::RD_TO_
 };
 
 const DXGI_COLOR_SPACE_TYPE RenderingDeviceDriverD3D12::RD_TO_DXGI_COLOR_SPACE_TYPE[RDD::COLOR_SPACE_MAX]{
-	/* COLOR_SPACE_SRGB_LINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
-	/* COLOR_SPACE_SRGB_NONLINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
-	/* COLOR_SPACE_HDR10_ST2084 */ DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
+	/* COLOR_SPACE_REC709_LINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
+	/* COLOR_SPACE_REC709_NONLINEAR_SRGB */ DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
+	/* COLOR_SPACE_REC2020_NONLINEAR_ST2084 */ DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
 };
 
 Error RenderingDeviceDriverD3D12::DescriptorsHeap::allocate(ID3D12Device *p_device, D3D12_DESCRIPTOR_HEAP_TYPE p_type, uint32_t p_descriptor_count, bool p_for_gpu) {
@@ -2550,14 +2550,14 @@ void RenderingDeviceDriverD3D12::_determine_swap_chain_format(SwapChain *p_swap_
 	if (context_driver->surface_get_hdr_output_enabled(p_swap_chain->surface)) {
 		if (context_driver->surface_get_hdr_output_prefer_high_precision(p_swap_chain->surface)) {
 			r_format = DATA_FORMAT_R16G16B16A16_SFLOAT;
-			r_color_space = COLOR_SPACE_SRGB_LINEAR;
+			r_color_space = COLOR_SPACE_REC709_LINEAR;
 		} else {
 			r_format = DATA_FORMAT_A2R10G10B10_UNORM_PACK32;
-			r_color_space = COLOR_SPACE_HDR10_ST2084;
+			r_color_space = COLOR_SPACE_REC2020_NONLINEAR_ST2084;
 		}
 	} else {
 		r_format = DATA_FORMAT_R8G8B8A8_UNORM;
-		r_color_space = COLOR_SPACE_SRGB_NONLINEAR;
+		r_color_space = COLOR_SPACE_REC709_NONLINEAR_SRGB;
 	}
 }
 
