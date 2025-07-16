@@ -315,10 +315,10 @@ const RenderingDeviceDriverD3D12::D3D12Format RenderingDeviceDriverD3D12::RD_TO_
 	/* DATA_FORMAT_ASTC_12x12_SFLOAT_BLOCK */ {},
 };
 
-const DXGI_COLOR_SPACE_TYPE RenderingDeviceDriverD3D12::RD_TO_DXGI_COLOR_SPACE_TYPE[RDD::COLOR_SPACE_MAX]{
-	/* COLOR_SPACE_SRGB_LINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
-	/* COLOR_SPACE_SRGB_NONLINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
-	/* COLOR_SPACE_HDR10_ST2084 */ DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
+const DXGI_COLOR_SPACE_TYPE RenderingDeviceDriverD3D12::RD_TO_DXGI_COLOR_SPACE_TYPE[RDD::TRANSFER_FUNCTION_MAX]{
+	/* TRANSFER_FUNCTION_LINEAR */ DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
+	/* TRANSFER_FUNCTION_NONLINEAR_SRGB */ DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709,
+	/* TRANSFER_FUNCTION_NONLINEAR_ST2084 */ DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
 };
 
 Error RenderingDeviceDriverD3D12::DescriptorsHeap::allocate(ID3D12Device *p_device, D3D12_DESCRIPTOR_HEAP_TYPE p_type, uint32_t p_descriptor_count, bool p_for_gpu) {
@@ -2541,7 +2541,7 @@ RDD::RenderPassID RenderingDeviceDriverD3D12::_swap_chain_create_render_pass(RDD
 	return render_pass_create(attachment, subpass, {}, 1, AttachmentReference());
 }
 
-void RenderingDeviceDriverD3D12::_determine_swap_chain_format(SwapChain *p_swap_chain, DataFormat &r_format, ColorSpace &r_color_space) {
+void RenderingDeviceDriverD3D12::_determine_swap_chain_format(SwapChain *p_swap_chain, DataFormat &r_format, TransferFunction &r_transfer_function) {
 	DEV_ASSERT(p_swap_chain);
 	DEV_ASSERT(p_swap_chain->surface != 0);
 
@@ -2550,14 +2550,14 @@ void RenderingDeviceDriverD3D12::_determine_swap_chain_format(SwapChain *p_swap_
 	if (context_driver->surface_get_hdr_output_enabled(p_swap_chain->surface)) {
 		if (context_driver->surface_get_hdr_output_prefer_high_precision(p_swap_chain->surface)) {
 			r_format = DATA_FORMAT_R16G16B16A16_SFLOAT;
-			r_color_space = COLOR_SPACE_SRGB_LINEAR;
+			r_transfer_function = TRANSFER_FUNCTION_LINEAR;
 		} else {
 			r_format = DATA_FORMAT_A2R10G10B10_UNORM_PACK32;
-			r_color_space = COLOR_SPACE_HDR10_ST2084;
+			r_transfer_function = TRANSFER_FUNCTION_NONLINEAR_ST2084;
 		}
 	} else {
 		r_format = DATA_FORMAT_R8G8B8A8_UNORM;
-		r_color_space = COLOR_SPACE_SRGB_NONLINEAR;
+		r_transfer_function = TRANSFER_FUNCTION_NONLINEAR_SRGB;
 	}
 }
 
@@ -2609,8 +2609,8 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 	}
 
 	RDD::DataFormat new_data_format;
-	RDD::ColorSpace new_color_space;
-	_determine_swap_chain_format(swap_chain, new_data_format, new_color_space);
+	RDD::TransferFunction new_transfer_function;
+	_determine_swap_chain_format(swap_chain, new_data_format, new_transfer_function);
 
 	if (swap_chain->d3d_swap_chain != nullptr && (creation_flags != swap_chain->creation_flags || new_data_format != swap_chain->data_format)) {
 		// The swap chain must be recreated if the creation flags or data format are different.
@@ -2666,11 +2666,11 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
 	}
 
-	if (swap_chain->color_space != new_color_space) {
-		res = swap_chain->d3d_swap_chain->SetColorSpace1(RD_TO_DXGI_COLOR_SPACE_TYPE[new_color_space]);
+	if (swap_chain->transfer_function != new_transfer_function) {
+		res = swap_chain->d3d_swap_chain->SetColorSpace1(RD_TO_DXGI_COLOR_SPACE_TYPE[new_transfer_function]);
 		ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
 
-		swap_chain->color_space = new_color_space;
+		swap_chain->transfer_function = new_transfer_function;
 	}
 
 #ifdef DCOMP_ENABLED
@@ -2784,9 +2784,9 @@ RDD::DataFormat RenderingDeviceDriverD3D12::swap_chain_get_format(SwapChainID p_
 	return swap_chain->data_format;
 }
 
-RDD::ColorSpace RenderingDeviceDriverD3D12::swap_chain_get_color_space(SwapChainID p_swap_chain) {
+RDD::TransferFunction RenderingDeviceDriverD3D12::swap_chain_get_transfer_function(SwapChainID p_swap_chain) {
 	const SwapChain *swap_chain = (const SwapChain *)(p_swap_chain.id);
-	return swap_chain->color_space;
+	return swap_chain->transfer_function;
 }
 
 void RenderingDeviceDriverD3D12::swap_chain_free(SwapChainID p_swap_chain) {

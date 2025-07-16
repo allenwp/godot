@@ -83,7 +83,7 @@ protected:
 		uint32_t layer; //  4 - 68
 		uint32_t source_is_srgb; //  4 - 72
 
-		uint32_t target_color_space; //  4 - 76
+		uint32_t target_transfer_function; //  4 - 76
 		float reference_multiplier; //  4 - 80
 	};
 
@@ -110,7 +110,7 @@ protected:
 	static RendererCompositorRD *singleton;
 
 	BlitPipelines _get_blit_pipelines_for_format(RenderingDevice::FramebufferFormatID format);
-	float _compute_reference_multiplier(RD::ColorSpace p_color_space, const float p_reference_luminance);
+	float _compute_reference_multiplier(RD::TransferFunction p_transfer_function, const float p_reference_luminance);
 
 public:
 	RendererUtilities *get_utilities() { return utilities; }

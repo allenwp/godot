@@ -1056,8 +1056,8 @@ void RenderingDeviceDriverMetal::swap_chain_set_max_fps(SwapChainID p_swap_chain
 	metal_surface->set_max_fps(p_max_fps);
 }
 
-RDD::ColorSpace RenderingDeviceDriverMetal::swap_chain_get_color_space(SwapChainID p_swap_chain) {
-	return RDD::COLOR_SPACE_SRGB_NONLINEAR;
+RDD::TransferFunction RenderingDeviceDriverMetal::swap_chain_get_transfer_function(SwapChainID p_swap_chain) {
+	return RDD::TRANSFER_FUNCTION_NONLINEAR_SRGB;
 }
 
 void RenderingDeviceDriverMetal::swap_chain_free(SwapChainID p_swap_chain) {

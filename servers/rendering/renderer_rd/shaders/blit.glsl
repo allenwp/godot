@@ -20,7 +20,7 @@ layout(push_constant, std140) uniform Pos {
 	uint layer;
 	bool source_is_srgb;
 
-	uint target_color_space;
+	uint target_transfer_function;
 	float reference_multiplier;
 }
 data;
@@ -62,7 +62,7 @@ layout(push_constant, std140) uniform Pos {
 	uint layer;
 	bool source_is_srgb;
 
-	uint target_color_space;
+	uint target_transfer_function;
 	float reference_multiplier;
 }
 data;
@@ -77,10 +77,10 @@ layout(binding = 0) uniform sampler2DArray src_rt;
 layout(binding = 0) uniform sampler2D src_rt;
 #endif
 
-// Keep in sync with RenderingDeviceCommons::ColorSpace
-#define COLOR_SPACE_SRGB_LINEAR 0
-#define COLOR_SPACE_SRGB_NONLINEAR 1
-#define COLOR_SPACE_HDR10_ST2084 2
+// Keep in sync with RenderingDeviceCommons::TransferFunction
+#define TRANSFER_FUNCTION_LINEAR 0
+#define TRANSFER_FUNCTION_NONLINEAR_SRGB 1
+#define TRANSFER_FUNCTION_NONLINEAR_ST2084 2
 
 vec3 srgb_to_linear(vec3 color) {
 	return mix(pow((color.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), color.rgb * (1.0 / 12.92), lessThan(color.rgb, vec3(0.04045)));
@@ -152,8 +152,8 @@ void main() {
 	color = texture(src_rt, uv);
 #endif
 
-	// Colorspace conversion for final blit
-	if (data.target_color_space == COLOR_SPACE_SRGB_LINEAR) {
+	// Apply transfer function for final blit
+	if (data.target_transfer_function == TRANSFER_FUNCTION_LINEAR) {
 		// Negative values may be interpreted as scRGB colors,
 		// so clip them to the intended sRGB colors.
 		color.rgb = max(vec3(0.0), color.rgb);
@@ -164,14 +164,14 @@ void main() {
 
 		// Adjust brightness of SDR content to reference luminance
 		color.rgb *= data.reference_multiplier;
-	} else if (data.target_color_space == COLOR_SPACE_SRGB_NONLINEAR) {
+	} else if (data.target_transfer_function == TRANSFER_FUNCTION_NONLINEAR_SRGB) {
 		// Negative values will be clipped by the target, so no need to
 		// clip them here.
 		if (data.source_is_srgb == false) {
 			// linear -> sRGB conversion
 			color.rgb = linear_to_srgb(color.rgb);
 		}
-	} else if (data.target_color_space == COLOR_SPACE_HDR10_ST2084) {
+	} else if (data.target_transfer_function == TRANSFER_FUNCTION_NONLINEAR_ST2084) {
 		// Negative values may be interpreted as colors outside of sRGB,
 		// so clip them to the intended sRGB colors.
 		color.rgb = max(vec3(0.0), color.rgb);

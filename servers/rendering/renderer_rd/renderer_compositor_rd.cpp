@@ -48,9 +48,9 @@ void RendererCompositorRD::blit_render_targets_to_screen(DisplayServer::WindowID
 	RD::DrawListID draw_list = RD::get_singleton()->draw_list_begin_for_screen(p_screen);
 	ERR_FAIL_COND(draw_list == RD::INVALID_ID);
 
-	const RD::ColorSpace color_space = RD::get_singleton()->screen_get_color_space(p_screen);
+	const RD::TransferFunction transfer_function = RD::get_singleton()->screen_get_transfer_function(p_screen);
 	const float reference_luminance = RD::get_singleton()->get_context_driver()->window_get_hdr_output_reference_luminance(p_screen);
-	const float reference_multiplier = _compute_reference_multiplier(color_space, reference_luminance);
+	const float reference_multiplier = _compute_reference_multiplier(transfer_function, reference_luminance);
 
 	for (int i = 0; i < p_amount; i++) {
 		RID rd_texture = texture_storage->render_target_get_rd_texture(p_render_targets[i].render_target);
@@ -103,7 +103,7 @@ void RendererCompositorRD::blit_render_targets_to_screen(DisplayServer::WindowID
 		blit.push_constant.upscale = p_render_targets[i].lens_distortion.upscale;
 		blit.push_constant.aspect_ratio = p_render_targets[i].lens_distortion.aspect_ratio;
 		blit.push_constant.source_is_srgb = !texture_storage->render_target_is_using_hdr(p_render_targets[i].render_target);
-		blit.push_constant.target_color_space = color_space;
+		blit.push_constant.target_transfer_function = transfer_function;
 		blit.push_constant.reference_multiplier = reference_multiplier;
 
 		RD::get_singleton()->draw_list_set_push_constant(draw_list, &blit.push_constant, sizeof(BlitPushConstant));
@@ -199,12 +199,12 @@ RendererCompositorRD::BlitPipelines RendererCompositorRD::_get_blit_pipelines_fo
 	return pipelines;
 }
 
-float RendererCompositorRD::_compute_reference_multiplier(RD::ColorSpace p_color_space, const float p_reference_luminance) {
-	switch (p_color_space) {
-		case RD::COLOR_SPACE_HDR10_ST2084:
+float RendererCompositorRD::_compute_reference_multiplier(RD::TransferFunction p_transfer_function, const float p_reference_luminance) {
+	switch (p_transfer_function) {
+		case RD::TRANSFER_FUNCTION_NONLINEAR_ST2084:
 			// Max brightness of ST2084 is 10000 nits, we output from 0 to 1.
 			return p_reference_luminance / 10000.0f;
-		case RD::COLOR_SPACE_SRGB_LINEAR:
+		case RD::TRANSFER_FUNCTION_LINEAR:
 #ifdef WINDOWS_ENABLED
 			// Windows expects multiples of 80 nits.
 			return p_reference_luminance / 80.0f;
@@ -266,9 +266,9 @@ void RendererCompositorRD::set_boot_image(const Ref<Image> &p_image, const Color
 	screenrect.position /= window_size;
 	screenrect.size /= window_size;
 
-	const RD::ColorSpace color_space = RD::get_singleton()->screen_get_color_space(DisplayServer::MAIN_WINDOW_ID);
+	const RD::TransferFunction transfer_function = RD::get_singleton()->screen_get_transfer_function(DisplayServer::MAIN_WINDOW_ID);
 	const float reference_luminance = RD::get_singleton()->get_context_driver()->window_get_hdr_output_reference_luminance(DisplayServer::MAIN_WINDOW_ID);
-	const float reference_multiplier = _compute_reference_multiplier(color_space, reference_luminance);
+	const float reference_multiplier = _compute_reference_multiplier(transfer_function, reference_luminance);
 
 	RD::DrawListID draw_list = RD::get_singleton()->draw_list_begin_for_screen(DisplayServer::MAIN_WINDOW_ID, p_color);
 
@@ -296,7 +296,7 @@ void RendererCompositorRD::set_boot_image(const Ref<Image> &p_image, const Color
 	blit.push_constant.upscale = 1.0;
 	blit.push_constant.aspect_ratio = 1.0;
 	blit.push_constant.source_is_srgb = true;
-	blit.push_constant.target_color_space = color_space;
+	blit.push_constant.target_transfer_function = transfer_function;
 	blit.push_constant.reference_multiplier = reference_multiplier;
 
 	RD::get_singleton()->draw_list_set_push_constant(draw_list, &blit.push_constant, sizeof(BlitPushConstant));

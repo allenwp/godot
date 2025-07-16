@@ -317,11 +317,11 @@ public:
 		DATA_FORMAT_MAX,
 	};
 
-	enum ColorSpace {
-		COLOR_SPACE_SRGB_LINEAR,
-		COLOR_SPACE_SRGB_NONLINEAR,
-		COLOR_SPACE_HDR10_ST2084,
-		COLOR_SPACE_MAX,
+	enum TransferFunction {
+		TRANSFER_FUNCTION_LINEAR,
+		TRANSFER_FUNCTION_NONLINEAR_SRGB,
+		TRANSFER_FUNCTION_NONLINEAR_ST2084,
+		TRANSFER_FUNCTION_MAX,
 	};
 
 	// Breadcrumb markers are useful for debugging GPU crashes (i.e. DEVICE_LOST). Internally
