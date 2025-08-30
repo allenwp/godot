@@ -82,6 +82,7 @@ vec3 apply_color_correction(vec3 color) {
 #endif // USE_COLOR_CORRECTION
 
 #ifdef USE_BCS
+// TODO: replace BCS with the one from RD
 vec3 apply_bcs(vec3 color) {
 	color = mix(vec3(0.0), color, brightness);
 	color = mix(vec3(0.5), color, contrast);
@@ -102,10 +103,12 @@ void main() {
 	vec4 color = texture(source_color, uv_interp);
 #endif
 
+	// TODO: apply srgb_to_linear to here and adjust luminance multiplier and glow to work correctly with this change.
+
 #ifdef USE_GLOW
 	vec4 glow = get_glow_color(uv_interp) * glow_intensity;
 
-	// Just use softlight...
+	// Just use screen...
 	glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
 	color.rgb = max((color.rgb + glow.rgb) - (color.rgb * glow.rgb), vec3(0.0));
 #endif // USE_GLOW
@@ -116,11 +119,12 @@ void main() {
 
 	color.rgb = srgb_to_linear(color.rgb);
 	color.rgb = apply_tonemapping(color.rgb, white);
-	color.rgb = linear_to_srgb(color.rgb);
 
 #ifdef USE_BCS
 	color.rgb = apply_bcs(color.rgb);
 #endif
+
+	color.rgb = linear_to_srgb(color.rgb);
 
 #ifdef USE_COLOR_CORRECTION
 	color.rgb = apply_color_correction(color.rgb);

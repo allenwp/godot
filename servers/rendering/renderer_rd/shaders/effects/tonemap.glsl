@@ -68,6 +68,18 @@ layout(set = 3, binding = 0) uniform sampler3D source_color_correction;
 #define FLAG_USE_8_BIT_DEBANDING (1 << 5)
 #define FLAG_USE_10_BIT_DEBANDING (1 << 6)
 #define FLAG_CONVERT_TO_SRGB (1 << 7)
+#define FLAG_CONTRAST_4_4 (1 << 8)
+#define FLAG_CONTRAST_LINEAR_SRGB_MIDDLE (1 << 9)
+#define FLAG_CONTRAST_LINEAR_CIE_L_MIDDLE (1 << 10)
+#define FLAG_CONTRAST_LUMINANCE_CIE_L_MIDDLE (1 << 11)
+#define FLAG_SATURATION_4_4 (1 << 12)
+#define FLAG_SATURATION_LINEAR_EVEN_WEIGHTS (1 << 13)
+#define FLAG_SATURATION_LINEAR_LUMINANCE_WEIGHTED (1 << 14)
+#define FLAG_SATURATION_HSV_NONLINEAR (1 << 15)
+#define FLAG_SATURATION_HSV_LINEAR (1 << 16)
+#define FLAG_ORDER_SCB (1 << 17)
+#define FLAG_ORDER_CSB (1 << 18)
+#define FLAG_ORDER_BCS (1 << 19)
 
 layout(push_constant, std430) uniform Params {
 	vec3 bcs;
@@ -329,11 +341,13 @@ vec3 tonemap_agx(vec3 color) {
 }
 
 vec3 linear_to_srgb(vec3 color) {
-	// Clamping is not strictly necessary for floating point nonlinear sRGB encoding,
-	// but many cases that call this function need the result clamped.
-	color = clamp(color, vec3(0.0), vec3(1.0));
 	const vec3 a = vec3(0.055f);
 	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
+}
+
+// TODO: remove this; it's only needed for simulating Godot 4.4 behavior.
+vec3 srgb_to_linear(vec3 c) {
+	return mix(pow((c.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), c.rgb * (1.0 / 12.92), lessThan(c.rgb, vec3(0.04045)));
 }
 
 #define TONEMAPPER_LINEAR 0
@@ -410,6 +424,9 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 		glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
 		return max((color + glow) - (color * glow), vec3(0.0));
 	} else if (params.glow_mode == GLOW_MODE_SOFTLIGHT) {
+		// TODO: This is written to function well with nonlinear sRGB encoded values. It does not work with linear encoded values.
+		// At minimum the 0.5 conditionals should be changed to sRGB 50% or CIE L* 50%, but it's possible that more needs to be done...
+
 		// Needs color clamping.
 		glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
 		glow = glow * vec3(0.5f) + vec3(0.5f);
@@ -423,10 +440,109 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 	}
 }
 
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c) {
+	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+vec3 apply_saturation(vec3 color, vec3 bcs) {
+	const vec3 rec709_luminance_weights = vec3(0.2126, 0.7152, 0.0722);
+	const vec3 srgb_transfer_function_middle = vec3(0.214041140482232); // 50% encoded with the nonlinear sRGB transfer function
+	const float cie_middle_lightness = 0.1841865; // CIE L* middle lightness in linear relative luminance
+
+	if (bool(params.flags & FLAG_SATURATION_4_4)) {
+		color = clamp(color, vec3(0.0), vec3(1.0));
+		color.rgb = linear_to_srgb(color.rgb);
+		color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
+		color.rgb = srgb_to_linear(color.rgb);
+	} else if (bool(params.flags & FLAG_SATURATION_LINEAR_EVEN_WEIGHTS)) {
+		color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
+	} else if (bool(params.flags & FLAG_SATURATION_LINEAR_LUMINANCE_WEIGHTED)) {
+		// Using luminance weights of the color primaries will result in a stable result that is not
+		// dependent on color primaries and results in much nicer desaturation. This has the downside
+		// of favoring green when increasing saturation, which may cause undesirable clipping in that
+		// channel before other channels.
+		color = mix(vec3(dot(rec709_luminance_weights, color)), color, bcs.z);
+	} else if (bool(params.flags & FLAG_SATURATION_HSV_NONLINEAR)) {
+		color.rgb = rgb2hsv(color.rgb);
+		color.y *= bcs.z;
+		color.rgb = hsv2rgb(color.rgb);
+	} else if (bool(params.flags & FLAG_SATURATION_HSV_NONLINEAR)) {
+		color.rgb = linear_to_srgb(color.rgb);
+		color.rgb = rgb2hsv(color.rgb);
+		color.y *= bcs.z;
+		color.rgb = hsv2rgb(color.rgb);
+		color.rgb = srgb_to_linear(color.rgb);
+	}
+	return color;
+}
+
+vec3 apply_contrast(vec3 color, vec3 bcs) {
+	const vec3 rec709_luminance_weights = vec3(0.2126, 0.7152, 0.0722);
+	const vec3 srgb_transfer_function_middle = vec3(0.214041140482232); // 50% encoded with the nonlinear sRGB transfer function
+	const float cie_middle_lightness = 0.1841865; // CIE L* middle lightness in linear relative luminance
+
+	if (bool(params.flags & FLAG_CONTRAST_4_4)) {
+		color = clamp(color, vec3(0.0), vec3(1.0));
+		color.rgb = linear_to_srgb(color.rgb);
+		color = mix(vec3(0.5f), color, bcs.y);
+		color.rgb = srgb_to_linear(color.rgb);
+	} else if (bool(params.flags & FLAG_CONTRAST_LINEAR_SRGB_MIDDLE)) {
+		// Match Godot legacy behavior of 50% nonlinear sRGB encoding
+		color = mix(srgb_transfer_function_middle, color, bcs.y);
+	} else if (bool(params.flags & FLAG_CONTRAST_LINEAR_CIE_L_MIDDLE)) {
+		// Alternatively, use misuse "middle gray" with even weighting between channels:
+		color = mix(vec3(cie_middle_lightness), color, bcs.y);
+	} else if (bool(params.flags & FLAG_CONTRAST_LUMINANCE_CIE_L_MIDDLE)) {
+		// Another alternative could be to apply contrast on CIE relative luminance instead of RGB values.
+		float luminance = dot(rec709_luminance_weights, color);
+		float new_luminance = mix(cie_middle_lightness, luminance, bcs.y);
+		color *= new_luminance / luminance;
+	}
+	return color;
+}
+
 vec3 apply_bcs(vec3 color, vec3 bcs) {
-	color = mix(vec3(0.0f), color, bcs.x);
-	color = mix(vec3(0.5f), color, bcs.y);
-	color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
+	const vec3 rec709_luminance_weights = vec3(0.2126, 0.7152, 0.0722);
+	const vec3 srgb_transfer_function_middle = vec3(0.214041140482232); // 50% encoded with the nonlinear sRGB transfer function
+	const float cie_middle_lightness = 0.1841865; // CIE L* middle lightness in linear relative luminance
+
+#define FLAG_ORDER_SCB (1 << 17)
+#define FLAG_ORDER_CSB (1 << 18)
+#define FLAG_ORDER_BCS (1 << 19)
+	if (bool(params.flags & FLAG_ORDER_SCB)) {
+		color = apply_saturation(color, bcs);
+		color = apply_contrast(color, bcs);
+
+		// Apply exposure (brightness) last because there are other ways
+		// for the user to adjust exposure before saturation and contrast
+		// adjustments are applied.
+		color = color * bcs.x;
+	} else if (bool(params.flags & FLAG_ORDER_CSB)) {
+		color = apply_contrast(color, bcs);
+		color = apply_saturation(color, bcs);
+
+		// Apply exposure (brightness) last because there are other ways
+		// for the user to adjust exposure before saturation and contrast
+		// adjustments are applied.
+		color = color * bcs.x;
+	} else if (bool(params.flags & FLAG_ORDER_BCS)) {
+		// Godot 4.4 ordering
+		color = color * bcs.x;
+		color = apply_contrast(color, bcs);
+		color = apply_saturation(color, bcs);
+	}
 
 	return color;
 }
@@ -877,10 +993,6 @@ void main() {
 
 	color.rgb = apply_tonemapping(color.rgb, params.white);
 
-	bool convert_to_srgb = bool(params.flags & FLAG_CONVERT_TO_SRGB);
-	if (convert_to_srgb) {
-		color.rgb = linear_to_srgb(color.rgb); // Regular linear -> SRGB conversion.
-	}
 #ifndef SUBPASS
 	// Glow
 	if (bool(params.flags & FLAG_USE_GLOW) && params.glow_mode != GLOW_MODE_MIX) {
@@ -889,11 +1001,8 @@ void main() {
 			glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
 		}
 
-		// high dynamic range -> SRGB
+		// high dynamic range -> display dynamic range
 		glow = apply_tonemapping(glow, params.white);
-		if (convert_to_srgb) {
-			glow = linear_to_srgb(glow);
-		}
 
 		color.rgb = apply_glow(color.rgb, glow);
 	}
@@ -905,11 +1014,12 @@ void main() {
 		color.rgb = apply_bcs(color.rgb, params.bcs);
 	}
 
+	// apply_color_correction also requires nonlinear sRGB encoding
+	if (bool(params.flags & FLAG_CONVERT_TO_SRGB) || bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
+		color = clamp(color, vec3(0.0), vec3(1.0)); // TODO: verify that this can be removed; I don't think it's necessary
+		color.rgb = linear_to_srgb(color.rgb);
+	}
 	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
-		// apply_color_correction requires nonlinear sRGB encoding
-		if (!convert_to_srgb) {
-			color.rgb = linear_to_srgb(color.rgb);
-		}
 		color.rgb = apply_color_correction(color.rgb);
 		// When convert_to_srgb is false, there is no need to convert back to
 		// linear because the color correction texture sampling does this for us.

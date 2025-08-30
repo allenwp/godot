@@ -803,7 +803,18 @@ bool RendererEnvironmentStorage::environment_get_adjustments_enabled(RID p_env) 
 float RendererEnvironmentStorage::environment_get_adjustments_brightness(RID p_env) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
-	return env->adjustments_brightness;
+	float result = env->adjustments_brightness;
+	// sRGB -> linear to give a perceptually uniform adjustment that can work well with animations like fading to black.
+	// Unlike log2 exposure stops, this works well with values down to 0.0, allowing the user to fully black out the image
+	// using the brightness control.
+
+	// TODO: Consider exposing a "Brightness scale" property with these values:
+	// "Linear", "sRGB Transfer Function" and "Exposure Stops (log2)", defaulting to "sRGB Transfer Function"
+	// This way users could maintain "Linear" functionality of current HDR 2D by switching to "Linear".
+	// These three could also be added to tonemap exposure and camera exposure
+
+	result = result < 0.04045f ? result * (1.0f / 12.92f) : Math::pow(float((result + 0.055) * (1.0 / (1.0 + 0.055))), 2.4f);
+	return result;
 }
 
 float RendererEnvironmentStorage::environment_get_adjustments_contrast(RID p_env) const {

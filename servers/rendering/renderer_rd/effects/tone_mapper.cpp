@@ -89,6 +89,10 @@ void ToneMapper::tonemapper(RID p_source_color, RID p_dst_framebuffer, const Ton
 
 	memset(&tonemap.push_constant, 0, sizeof(TonemapPushConstant));
 
+	tonemap.push_constant.flags |= TONEMAP_FLAG_CONTRAST_LUMINANCE_CIE_L_MIDDLE;
+	tonemap.push_constant.flags |= TONEMAP_FLAG_SATURATION_LINEAR_LUMINANCE_WEIGHTED;
+	tonemap.push_constant.flags |= TONEMAP_FLAG_ORDER_SCB;
+
 	tonemap.push_constant.flags |= p_settings.use_bcs ? TONEMAP_FLAG_USE_BCS : 0;
 	tonemap.push_constant.bcs[0] = p_settings.brightness;
 	tonemap.push_constant.bcs[1] = p_settings.contrast;
