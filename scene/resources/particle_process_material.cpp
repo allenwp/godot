@@ -481,6 +481,9 @@ void ParticleProcessMaterial::_update_shader() {
 		code += "}\n\n";
 	}
 
+	// TODO: This seems to use something like https://learn.microsoft.com/en-us/windows/win32/direct2d/hue-rotate
+	// Which means these rotation matrices need to be regenerated using Rec. 709 (and again in the future for other colour gamuts.)
+	// More info might be found here: https://poynton.ca/notes/colour_and_gamma/ColorFAQ.html
 	code += "vec4 rotate_hue(vec4 current_color, float hue_rot_angle) {\n";
 	code += "	float hue_rot_c = cos(hue_rot_angle);\n";
 	code += "	float hue_rot_s = sin(hue_rot_angle);\n";

@@ -514,7 +514,8 @@ float QUALITY(float q) {
 }
 
 float rgb2luma(vec3 rgb) {
-	return sqrt(dot(rgb, vec3(0.299, 0.587, 0.114)));
+	const vec3 rec709_luminance_weights = vec3(0.2126, 0.7152, 0.0722);
+	return sqrt(dot(rgb, rec709_luminance_weights));
 }
 
 vec3 do_fxaa(vec3 color, float exposure, vec2 uv_interp) {

@@ -1132,6 +1132,9 @@ void CPUParticles3D::_particles_process(double p_delta) {
 
 		Basis hue_rot_mat;
 		{
+			// TODO: This seems to use something like https://learn.microsoft.com/en-us/windows/win32/direct2d/hue-rotate
+			// Which means these rotation matrices need to be regenerated using Rec. 709 (and again in the future for other colour gamuts.)
+			// More info might be found here: https://poynton.ca/notes/colour_and_gamma/ColorFAQ.html
 			Basis mat1(0.299, 0.587, 0.114, 0.299, 0.587, 0.114, 0.299, 0.587, 0.114);
 			Basis mat2(0.701, -0.587, -0.114, -0.299, 0.413, -0.114, -0.300, -0.588, 0.886);
 			Basis mat3(0.168, 0.330, -0.497, -0.328, 0.035, 0.292, 1.250, -1.050, -0.203);
