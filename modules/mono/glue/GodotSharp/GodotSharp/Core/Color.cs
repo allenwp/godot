@@ -248,7 +248,7 @@ namespace Godot
         /// </summary>
         public readonly float Luminance
         {
-            get { return 0.2126f * R + 0.7152f * G + 0.0722f * B; }
+            get { return 0.2126f * R + 0.7152f * G + 0.0722f * B; } // Rec. 709 luminance weights.
         }
 
         /// <summary>

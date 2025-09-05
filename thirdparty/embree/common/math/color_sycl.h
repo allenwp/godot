@@ -63,7 +63,7 @@ namespace embree
     }
     __forceinline void set(float &f) const
     {
-      f = 0.2126f*r+0.7125f*g+0.0722f*b; // sRGB luminance.
+      f = 0.2126f*r+0.7125f*g+0.0722f*b; // Rec. 709 luminance.
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +209,7 @@ namespace embree
   /// Special Operators
   ////////////////////////////////////////////////////////////////////////////////
 
-  /*! computes luminance of a color */
+  /*! computes luminance of a color using Rec. 709 luminance weights */
   __forceinline float luminance (const Color& a) { return madd(0.212671f,a.r,madd(0.715160f,a.g,0.072169f*a.b)); }
 
   /*! output operator */

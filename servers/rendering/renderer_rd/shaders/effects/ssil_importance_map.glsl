@@ -64,7 +64,7 @@ void main() {
 		vec3 value_c = texelFetch(source_texture, ivec3(base_position, i) + ivec3(1, 0, 0), 0).rgb * params.intensity;
 		vec3 value_d = texelFetch(source_texture, ivec3(base_position, i) + ivec3(1, 1, 0), 0).rgb * params.intensity;
 
-		// Calculate luminance (black and white value)
+		// Calculate luminance (black and white value) using Rec. 709 luminance weights.
 		float a = dot(value_a, vec3(0.2125, 0.7154, 0.0721));
 		float b = dot(value_b, vec3(0.2125, 0.7154, 0.0721));
 		float c = dot(value_c, vec3(0.2125, 0.7154, 0.0721));

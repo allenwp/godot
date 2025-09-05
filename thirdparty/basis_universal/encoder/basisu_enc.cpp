@@ -3682,7 +3682,7 @@ namespace basisu
 					c[1] *= exposure;
 					c[2] *= exposure;
 
-					const float L = 0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2];
+					const float L = 0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2]; // Rec. 709 luminance weights.
 
 					float Lmapped = 0.0f;
 					if (L > 0.0f)

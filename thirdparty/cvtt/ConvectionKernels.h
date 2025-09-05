@@ -89,9 +89,9 @@ namespace cvtt
         Options()
             : flags(Flags::Default)
             , threshold(0.5f)
-            , redWeight(0.2125f / 0.7154f)
+            , redWeight(0.2125f / 0.7154f) // Rec. 709 luminance weights.
             , greenWeight(1.0f)
-            , blueWeight(0.0721f / 0.7154f)
+            , blueWeight(0.0721f / 0.7154f) // Rec. 709 luminance weights.
             , alphaWeight(1.0f)
             , refineRoundsBC7(2)
             , refineRoundsBC6H(3)

@@ -1396,7 +1396,7 @@ png_XYZ_from_xy(png_XYZ *XYZ, const png_xy *xy)
     *  The resultant Y coefficients from the chromaticities of some widely used
     *  color space definitions are (to 15 decimal places):
     *
-    *  sRGB
+    *  Rec. 709 and sRGB
     *    0.212639005871510 0.715168678767756 0.072192315360734
     *  Kodak ProPhoto
     *    0.288071128229293 0.711843217810102 0.000085653960605

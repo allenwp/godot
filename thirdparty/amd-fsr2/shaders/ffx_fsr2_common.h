@@ -292,12 +292,12 @@ FFX_MIN16_F3 RGBToYCoCg(FFX_MIN16_F3 fRgb)
 
 FfxFloat32 RGBToLuma(FfxFloat32x3 fLinearRgb)
 {
-    return dot(fLinearRgb, FfxFloat32x3(0.2126f, 0.7152f, 0.0722f));
+    return dot(fLinearRgb, FfxFloat32x3(0.2126f, 0.7152f, 0.0722f)); // Rec. 709 luminance weights.
 }
 #if FFX_HALF
 FFX_MIN16_F RGBToLuma(FFX_MIN16_F3 fLinearRgb)
 {
-    return dot(fLinearRgb, FFX_MIN16_F3(0.2126f, 0.7152f, 0.0722f));
+    return dot(fLinearRgb, FFX_MIN16_F3(0.2126f, 0.7152f, 0.0722f)); // Rec. 709 luminance weights.
 }
 #endif
 

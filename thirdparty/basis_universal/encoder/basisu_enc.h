@@ -3653,7 +3653,7 @@ namespace basisu
 		vec4F_vec m_pixels;
 	};
 
-	// REC 709 coefficients
+	// Rec. 709 coefficients
 	const float REC_709_R = 0.212656f, REC_709_G = 0.715158f, REC_709_B = 0.072186f;
 
 	inline float get_luminance(const vec4F &c)
