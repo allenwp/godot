@@ -1066,6 +1066,15 @@ Ref<Texture> Environment::get_adjustment_color_correction() const {
 	return adjustment_color_correction;
 }
 
+void Environment::set_adjustment_encoding(AdjustmentEncoding p_encoding) {
+	adjustment_encoding = p_encoding;
+	_update_adjustment();
+}
+
+Environment::AdjustmentEncoding Environment::get_adjustment_encoding() const {
+	return adjustment_encoding;
+}
+
 void Environment::_update_adjustment() {
 	RID color_correction = adjustment_color_correction.is_valid() ? adjustment_color_correction->get_rid() : RID();
 
@@ -1076,7 +1085,8 @@ void Environment::_update_adjustment() {
 			adjustment_contrast,
 			adjustment_saturation,
 			use_1d_color_correction,
-			color_correction);
+			color_correction,
+			RS::EnvironmentAdjustmentEncoding(adjustment_encoding));
 }
 
 // Private methods, constructor and destructor
@@ -1125,8 +1135,8 @@ void Environment::_validate_property(PropertyInfo &p_property) const {
 	}
 
 	if (OS::get_singleton()->get_current_rendering_method() == "gl_compatibility") {
-		// Hide glow properties we do not support in GL Compatibility.
-		if (p_property.name.begins_with("glow_levels") || p_property.name == "glow_normalized" || p_property.name == "glow_strength" || p_property.name == "glow_mix" || p_property.name == "glow_blend_mode" || p_property.name == "glow_map_strength" || p_property.name == "glow_map") {
+		// Hide glow and adjustment properties we do not support in GL Compatibility.
+		if (p_property.name.begins_with("glow_levels") || p_property.name == "glow_normalized" || p_property.name == "glow_strength" || p_property.name == "glow_mix" || p_property.name == "glow_blend_mode" || p_property.name == "glow_map_strength" || p_property.name == "glow_map" || p_property.name == "adjustment_encoding") {
 			p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 		}
 	} else {
@@ -1519,13 +1529,16 @@ void Environment::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_adjustment_saturation"), &Environment::get_adjustment_saturation);
 	ClassDB::bind_method(D_METHOD("set_adjustment_color_correction", "color_correction"), &Environment::set_adjustment_color_correction);
 	ClassDB::bind_method(D_METHOD("get_adjustment_color_correction"), &Environment::get_adjustment_color_correction);
+	ClassDB::bind_method(D_METHOD("set_adjustment_encoding", "adjustment_encoding"), &Environment::set_adjustment_encoding);
+	ClassDB::bind_method(D_METHOD("get_adjustment_encoding"), &Environment::get_adjustment_encoding);
 
 	ADD_GROUP("Adjustments", "adjustment_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "adjustment_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_adjustment_enabled", "is_adjustment_enabled");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_brightness", PROPERTY_HINT_RANGE, "0.01,8,0.01"), "set_adjustment_brightness", "get_adjustment_brightness");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_contrast", PROPERTY_HINT_RANGE, "0.01,8,0.01"), "set_adjustment_contrast", "get_adjustment_contrast");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_saturation", PROPERTY_HINT_RANGE, "0.01,8,0.01"), "set_adjustment_saturation", "get_adjustment_saturation");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_brightness", PROPERTY_HINT_RANGE, "0.0,2.0,0.01,or_greater"), "set_adjustment_brightness", "get_adjustment_brightness");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_contrast", PROPERTY_HINT_RANGE, "0.0,2.0,0.01,or_greater,or_less"), "set_adjustment_contrast", "get_adjustment_contrast");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "adjustment_saturation", PROPERTY_HINT_RANGE, "0.0,2.0,0.01,or_greater,or_less"), "set_adjustment_saturation", "get_adjustment_saturation");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "adjustment_color_correction", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D,Texture3D"), "set_adjustment_color_correction", "get_adjustment_color_correction");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "adjustment_encoding", PROPERTY_HINT_ENUM, "Nonlinear sRGB,Linear"), "set_adjustment_encoding", "get_adjustment_encoding");
 
 	// Constants
 
@@ -1564,6 +1577,9 @@ void Environment::_bind_methods() {
 	BIND_ENUM_CONSTANT(SDFGI_Y_SCALE_50_PERCENT);
 	BIND_ENUM_CONSTANT(SDFGI_Y_SCALE_75_PERCENT);
 	BIND_ENUM_CONSTANT(SDFGI_Y_SCALE_100_PERCENT);
+
+	BIND_ENUM_CONSTANT(ADJUSTMENT_ENCODING_NONLINEAR_SRGB);
+	BIND_ENUM_CONSTANT(ADJUSTMENT_ENCODING_LINEAR);
 }
 
 Environment::Environment() {

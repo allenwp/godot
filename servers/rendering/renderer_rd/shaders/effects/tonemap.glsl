@@ -68,6 +68,7 @@ layout(set = 3, binding = 0) uniform sampler3D source_color_correction;
 #define FLAG_USE_8_BIT_DEBANDING (1 << 5)
 #define FLAG_USE_10_BIT_DEBANDING (1 << 6)
 #define FLAG_CONVERT_TO_SRGB (1 << 7)
+#define FLAG_BCS_ENCODING_NONLINEAR_SRGB (1 << 8)
 
 layout(push_constant, std430) uniform Params {
 	vec3 bcs;
@@ -336,6 +337,11 @@ vec3 linear_to_srgb(vec3 color) {
 	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
 }
 
+vec3 srgb_to_linear(vec3 color) {
+	const vec3 a = vec3(0.055f);
+	return mix(pow((color.rgb + a) * (1.0f / (vec3(1.0f) + a)), vec3(2.4f)), color.rgb * (1.0f / 12.92f), lessThan(color.rgb, vec3(0.04045f)));
+}
+
 #define TONEMAPPER_LINEAR 0
 #define TONEMAPPER_REINHARD 1
 #define TONEMAPPER_FILMIC 2
@@ -424,9 +430,17 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 }
 
 vec3 apply_bcs(vec3 color, vec3 bcs) {
-	color = mix(vec3(0.0f), color, bcs.x);
-	color = mix(vec3(0.5f), color, bcs.y);
-	color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
+	// Apply "brightness" (image exposure):
+	color = color * params.bcs.x;
+
+	// Apply contrast:
+	// Contrast middle is always 50% after applying the nonlinear sRGB transfer function, which
+	// is slightly brighter than typical middle gray of 18%.
+	vec3 contrast_middle = bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB) ? vec3(0.5f) : vec3(0.214041140482232f);
+	color = mix(contrast_middle, color, params.bcs.y);
+
+	// Apply saturation:
+	color = mix(vec3(dot(vec3(1.0f), color) * (1.0f / 3.0f)), color, params.bcs.z);
 
 	return color;
 }
@@ -902,12 +916,25 @@ void main() {
 	// Additional effects
 
 	if (bool(params.flags & FLAG_USE_BCS)) {
+		if (!convert_to_srgb && bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB)) {
+			color.rgb = linear_to_srgb(color.rgb);
+		} else if (convert_to_srgb && !bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB)) {
+			color.rgb = srgb_to_linear(color.rgb);
+		}
+
 		color.rgb = apply_bcs(color.rgb, params.bcs);
+
+		if (!convert_to_srgb && bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB) && !bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
+			color.rgb = srgb_to_linear(color.rgb);
+		} else if (convert_to_srgb && !bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB)) {
+			color.rgb = linear_to_srgb(color.rgb);
+		}
 	}
 
 	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
-		// apply_color_correction requires nonlinear sRGB encoding
-		if (!convert_to_srgb) {
+		// apply_color_correction requires values to be nonlinear sRGB encoded.
+		// When convert_to_srgb is true or when BCS was applied with nonlinear sRGB encoding, the encoding has already been done.
+		if (!convert_to_srgb && !(bool(params.flags & FLAG_USE_BCS) && bool(params.flags & FLAG_BCS_ENCODING_NONLINEAR_SRGB))) {
 			color.rgb = linear_to_srgb(color.rgb);
 		}
 		color.rgb = apply_color_correction(color.rgb);
