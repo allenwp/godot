@@ -88,6 +88,11 @@ public:
 		GLOW_BLEND_MODE_MIX,
 	};
 
+	enum AdjustmentEncoding {
+		ADJUSTMENT_ENCODING_NONLINEAR_SRGB,
+		ADJUSTMENT_ENCODING_LINEAR,
+	};
+
 private:
 	RID environment;
 
@@ -219,6 +224,7 @@ private:
 	float adjustment_saturation = 1.0;
 	bool use_1d_color_correction = true;
 	Ref<Texture> adjustment_color_correction;
+	AdjustmentEncoding adjustment_encoding = AdjustmentEncoding::ADJUSTMENT_ENCODING_NONLINEAR_SRGB;
 	void _update_adjustment();
 
 protected:
@@ -441,6 +447,8 @@ public:
 	float get_adjustment_saturation() const;
 	void set_adjustment_color_correction(Ref<Texture> p_color_correction);
 	Ref<Texture> get_adjustment_color_correction() const;
+	void set_adjustment_encoding(AdjustmentEncoding p_encoding);
+	AdjustmentEncoding get_adjustment_encoding() const;
 
 	Environment();
 	~Environment();
@@ -453,3 +461,4 @@ VARIANT_ENUM_CAST(Environment::ToneMapper)
 VARIANT_ENUM_CAST(Environment::SDFGIYScale)
 VARIANT_ENUM_CAST(Environment::GlowBlendMode)
 VARIANT_ENUM_CAST(Environment::FogMode)
+VARIANT_ENUM_CAST(Environment::AdjustmentEncoding)

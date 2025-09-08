@@ -782,7 +782,7 @@ RS::EnvironmentSDFGIYScale RendererEnvironmentStorage::environment_get_sdfgi_y_s
 
 // Adjustments
 
-void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction) {
+void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction, RS::EnvironmentAdjustmentEncoding p_encoding) {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL(env);
 
@@ -792,6 +792,7 @@ void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_en
 	env->adjustments_saturation = p_saturation;
 	env->use_1d_color_correction = p_use_1d_color_correction;
 	env->color_correction = p_color_correction;
+	env->adjustments_encoding = p_encoding;
 }
 
 bool RendererEnvironmentStorage::environment_get_adjustments_enabled(RID p_env) const {
@@ -828,4 +829,10 @@ RID RendererEnvironmentStorage::environment_get_color_correction(RID p_env) cons
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, RID());
 	return env->color_correction;
+}
+
+RS::EnvironmentAdjustmentEncoding RendererEnvironmentStorage::environment_get_adjustments_encoding(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, RS::EnvironmentAdjustmentEncoding::ENV_ADJUSTMENT_ENCODING_NONLINEAR_SRGB);
+	return env->adjustments_encoding;
 }
