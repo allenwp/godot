@@ -153,6 +153,8 @@ private:
 		float adjustments_saturation = 1.0f;
 		bool use_1d_color_correction = false;
 		RID color_correction;
+		RS::EnvironmentBrightnessScale adjustments_brightness_scale = RS::EnvironmentBrightnessScale::ENV_ADJUSTMENT_BRIGHTNESS_SCALE_SRGB;
+		bool adjustments_minimize_transformations = false;
 	};
 
 	mutable RID_Owner<Environment, true> environment_owner;
@@ -296,11 +298,14 @@ public:
 	RS::EnvironmentSDFGIYScale environment_get_sdfgi_y_scale(RID p_env) const;
 
 	// Adjustment
-	void environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction);
+	void environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction, RS::EnvironmentBrightnessScale p_brightness_scale, bool p_minimize_transformations);
 	bool environment_get_adjustments_enabled(RID p_env) const;
 	float environment_get_adjustments_brightness(RID p_env) const;
+	float environment_get_adjustments_brightness_scaled(RID p_env, bool p_shader_provides_srgb) const;
 	float environment_get_adjustments_contrast(RID p_env) const;
 	float environment_get_adjustments_saturation(RID p_env) const;
 	bool environment_get_use_1d_color_correction(RID p_env) const;
 	RID environment_get_color_correction(RID p_env) const;
+	RS::EnvironmentBrightnessScale environment_get_adjustments_brightness_scale(RID p_env) const;
+	bool environment_get_adjustments_minimize_transformations(RID p_env) const;
 };
