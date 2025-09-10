@@ -68,6 +68,7 @@ layout(set = 3, binding = 0) uniform sampler3D source_color_correction;
 #define FLAG_USE_8_BIT_DEBANDING (1 << 5)
 #define FLAG_USE_10_BIT_DEBANDING (1 << 6)
 #define FLAG_CONVERT_TO_SRGB (1 << 7)
+#define FLAG_BCS_MIN_TRANSFORMATIONS (1 << 8)
 
 layout(push_constant, std430) uniform Params {
 	vec3 bcs;
@@ -336,6 +337,11 @@ vec3 linear_to_srgb(vec3 color) {
 	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
 }
 
+vec3 srgb_to_linear(vec3 color) {
+	const vec3 a = vec3(0.055f);
+	return mix(pow((color.rgb + a) * (1.0f / (vec3(1.0f) + a)), vec3(2.4f)), color.rgb * (1.0f / 12.92f), lessThan(color.rgb, vec3(0.04045f)));
+}
+
 #define TONEMAPPER_LINEAR 0
 #define TONEMAPPER_REINHARD 1
 #define TONEMAPPER_FILMIC 2
@@ -423,13 +429,6 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 	}
 }
 
-vec3 apply_bcs(vec3 color, vec3 bcs) {
-	color = mix(vec3(0.0f), color, bcs.x);
-	color = mix(vec3(0.5f), color, bcs.y);
-	color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
-
-	return color;
-}
 #ifdef USE_1D_LUT
 vec3 apply_color_correction(vec3 color) {
 	color.r = texture(source_color_correction, vec2(color.r, 0.0f)).r;
@@ -902,7 +901,49 @@ void main() {
 	// Additional effects
 
 	if (bool(params.flags & FLAG_USE_BCS)) {
-		color.rgb = apply_bcs(color.rgb, params.bcs);
+		if (bool(params.flags & FLAG_BCS_MIN_TRANSFORMATIONS)) {
+			color.rgb = color.rgb * params.bcs.x;
+			if (convert_to_srgb) {
+				color.rgb = mix(vec3(0.5f), color.rgb, params.bcs.y);
+			} else {
+				color.rgb = mix(vec3(0.214041140482232f), color.rgb, params.bcs.y);
+			}
+			color.rgb = mix(vec3(dot(vec3(1.0f), color.rgb) * (1.0f / 3.0f)), color.rgb, params.bcs.z);
+		} else {
+			if (convert_to_srgb) {
+				color.rgb = srgb_to_linear(color.rgb);
+			}
+
+			// Apply "brightness" (image exposure):
+			// When not minimizing transformations, we apply the image exposure ("brightness"
+			// adjustment) to relative luminance. This ensures that the hue of colors is not
+			// affected by the adjustment, but requires the multiplication to be performed
+			// on linear encoded values.
+			color.rgb = color.rgb * params.bcs.x;
+
+			// Apply contrast:
+			// When not minimizing transformations, we apply the contrast adjustment to
+			// perceptulally uniform (nonlinear encoded) values so that bright values
+			// are affected similarly to dark values.
+			// Log encoding is common for color adjustment workflows and log2 and exp2
+			// are typically implemented in hardware on GPUs, so they are relatively fast.
+			// TODO: options:
+			// sRGB middle gray: -2.224039973656993
+			// 18% middle gray: -2.473931188332412
+			// CIE L* middle gray: -2.440760772311523
+			//
+			color.rgb = max(color.rgb, 1e-10); // log2 requires positive values.
+			color.rgb = log2(color.rgb);
+			color.rgb = mix(vec3(-2.224039973656993f), color.rgb, params.bcs.y);
+			color.rgb = exp2(color.rgb);
+
+			// Apply saturation:
+			color.rgb = mix(vec3(dot(vec3(1.0f), color.rgb) * (1.0f / 3.0f)), color.rgb, params.bcs.z);
+
+			if (convert_to_srgb) {
+				color.rgb = linear_to_srgb(color.rgb);
+			}
+		}
 	}
 
 	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
