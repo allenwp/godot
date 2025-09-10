@@ -81,16 +81,6 @@ vec3 apply_color_correction(vec3 color) {
 #endif // USE_1D_LUT
 #endif // USE_COLOR_CORRECTION
 
-#ifdef USE_BCS
-vec3 apply_bcs(vec3 color) {
-	color = mix(vec3(0.0), color, brightness);
-	color = mix(vec3(0.5), color, contrast);
-	color = mix(vec3(dot(vec3(1.0), color) * 0.33333), color, saturation);
-
-	return color;
-}
-#endif
-
 in vec2 uv_interp;
 
 layout(location = 0) out vec4 frag_color;
@@ -115,11 +105,25 @@ void main() {
 #endif
 
 	color.rgb = srgb_to_linear(color.rgb);
+
 	color.rgb = apply_tonemapping(color.rgb, white);
-	color.rgb = linear_to_srgb(color.rgb);
 
 #ifdef USE_BCS
-	color.rgb = apply_bcs(color.rgb);
+	// Apply the image expsoure ("brightness" adjustment) to relitive luminance.
+	// This ensures that the hue of colors is not affected by the adjustment,
+	// but requires the multiplication to be performed on linear encoded values.
+	color.rgb = color.rgb * brightness;
+
+	color.rgb = linear_to_srgb(color.rgb);
+
+	// Apply the contrast adjustment to perceptulally uniform (nonlinear encoded)
+	// values so that bright values are affected similarly to dark values.
+	color.rgb = mix(vec3(0.5), color.rgb, contrast);
+
+	// Apply saturation:
+	color.rgb = mix(vec3(dot(vec3(1.0), color.rgb) * (1.0 / 3.0)), color.rgb, saturation);
+#else
+	color.rgb = linear_to_srgb(color.rgb);
 #endif
 
 #ifdef USE_COLOR_CORRECTION

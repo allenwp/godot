@@ -782,7 +782,7 @@ RS::EnvironmentSDFGIYScale RendererEnvironmentStorage::environment_get_sdfgi_y_s
 
 // Adjustments
 
-void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction) {
+void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, bool p_use_1d_color_correction, RID p_color_correction, RS::EnvironmentBrightnessScale p_brightness_scale, bool p_minimize_transformations) {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL(env);
 
@@ -792,6 +792,8 @@ void RendererEnvironmentStorage::environment_set_adjustment(RID p_env, bool p_en
 	env->adjustments_saturation = p_saturation;
 	env->use_1d_color_correction = p_use_1d_color_correction;
 	env->color_correction = p_color_correction;
+	env->adjustments_brightness_scale = p_brightness_scale;
+	env->adjustments_minimize_transformations = p_minimize_transformations;
 }
 
 bool RendererEnvironmentStorage::environment_get_adjustments_enabled(RID p_env) const {
@@ -804,6 +806,31 @@ float RendererEnvironmentStorage::environment_get_adjustments_brightness(RID p_e
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
 	return env->adjustments_brightness;
+}
+
+float RendererEnvironmentStorage::environment_get_adjustments_brightness_scaled(RID p_env, bool p_shader_provides_srgb) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, 1.0);
+	float brightness = env->adjustments_brightness;
+
+	// TODO: Exposing a "Brightness scale" property with these values:
+	// "sRGB Transfer Function", Linear, and "Exposure Stops (log2)", defaulting to "sRGB Transfer Function"
+	// This way users could maintain "Linear" functionality of current HDR 2D by switching to "Linear".
+	// These three could also be added to tonemap exposure and camera exposure
+
+	if (env->adjustments_brightness_scale == RS::ENV_ADJUSTMENT_BRIGHTNESS_SCALE_SRGB) {
+		if (env->adjustments_minimize_transformations && p_shader_provides_srgb) {
+			return brightness;
+		} else {
+			return brightness < 0.04045f ? brightness * (1.0f / 12.92f) : Math::pow(float((brightness + 0.055f) * (1.0f / (1.055f))), 2.4f);
+		}
+	} else { // RS::ENV_ADJUSTMENT_BRIGHTNESS_LINEAR
+		if (env->adjustments_minimize_transformations && p_shader_provides_srgb) {
+			return brightness < 0.0031308f ? brightness * 12.92f : 1.055f * Math::pow(brightness, 1.0f / 2.4f) - 0.055f;
+		} else {
+			return brightness;
+		}
+	}
 }
 
 float RendererEnvironmentStorage::environment_get_adjustments_contrast(RID p_env) const {
@@ -828,4 +855,16 @@ RID RendererEnvironmentStorage::environment_get_color_correction(RID p_env) cons
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, RID());
 	return env->color_correction;
+}
+
+RS::EnvironmentBrightnessScale RendererEnvironmentStorage::environment_get_adjustments_brightness_scale(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, RS::EnvironmentBrightnessScale::ENV_ADJUSTMENT_BRIGHTNESS_SCALE_SRGB);
+	return env->adjustments_brightness_scale;
+}
+
+bool RendererEnvironmentStorage::environment_get_adjustments_minimize_transformations(RID p_env) const {
+	Environment *env = environment_owner.get_or_null(p_env);
+	ERR_FAIL_NULL_V(env, false);
+	return env->adjustments_minimize_transformations;
 }

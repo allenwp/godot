@@ -68,6 +68,7 @@ layout(set = 3, binding = 0) uniform sampler3D source_color_correction;
 #define FLAG_USE_8_BIT_DEBANDING (1 << 5)
 #define FLAG_USE_10_BIT_DEBANDING (1 << 6)
 #define FLAG_CONVERT_TO_SRGB (1 << 7)
+#define FLAG_BCS_MIN_TRANSFORMATIONS (1 << 8)
 
 layout(push_constant, std430) uniform Params {
 	vec3 bcs;
@@ -336,6 +337,11 @@ vec3 linear_to_srgb(vec3 color) {
 	return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
 }
 
+vec3 srgb_to_linear(vec3 color) {
+	const vec3 a = vec3(0.055f);
+	return mix(pow((color.rgb + a) * (1.0f / (vec3(1.0f) + a)), vec3(2.4f)), color.rgb * (1.0f / 12.92f), lessThan(color.rgb, vec3(0.04045f)));
+}
+
 #define TONEMAPPER_LINEAR 0
 #define TONEMAPPER_REINHARD 1
 #define TONEMAPPER_FILMIC 2
@@ -423,13 +429,6 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 	}
 }
 
-vec3 apply_bcs(vec3 color, vec3 bcs) {
-	color = mix(vec3(0.0f), color, bcs.x);
-	color = mix(vec3(0.5f), color, bcs.y);
-	color = mix(vec3(dot(vec3(1.0f), color) * 0.33333f), color, bcs.z);
-
-	return color;
-}
 #ifdef USE_1D_LUT
 vec3 apply_color_correction(vec3 color) {
 	color.r = texture(source_color_correction, vec2(color.r, 0.0f)).r;
@@ -902,12 +901,45 @@ void main() {
 	// Additional effects
 
 	if (bool(params.flags & FLAG_USE_BCS)) {
-		color.rgb = apply_bcs(color.rgb, params.bcs);
+		// Apply "brightness" (image exposure):
+		if (!bool(params.flags & FLAG_BCS_MIN_TRANSFORMATIONS)) {
+			// When not minimizing transformations, we apply the image expsoure ("brightness"
+			// adjustment) to relitive luminance. This ensures that the hue of colors is not
+			// affected by the adjustment, but requires the multiplication to be performed
+			// on linear encoded values.
+			if (convert_to_srgb) {
+				color.rgb = srgb_to_linear(color.rgb);
+			}
+		}
+		color.rgb = color.rgb * params.bcs.x;
+
+		// Apply contrast:
+		if (!bool(params.flags & FLAG_BCS_MIN_TRANSFORMATIONS)) {
+			// When not minimizing transformations, we apply the contrast adjustment to
+			// perceptulally uniform (nonlinear encoded) values so that bright values
+			// are affected similarly to dark values.
+			color.rgb = linear_to_srgb(color.rgb);
+		}
+		color.rgb = mix(vec3(0.5f), color.rgb, params.bcs.y);
+
+		// Apply saturation:
+		// When not minimizing transformations, there isn't a strong reason to perform
+		// the saturation adjustment on linear values, so simply apply this adjustment
+		// on values that use the same encoding as the contrast adjustment.
+		// TODO: test this and compare with Rec. 709 weights using nonlinear and linear
+		color.rgb = mix(vec3(dot(vec3(1.0f), color.rgb) * (1.0f / 3.0f)), color.rgb, params.bcs.z);
+
+		if (!bool(params.flags & FLAG_BCS_MIN_TRANSFORMATIONS)) {
+			if (!convert_to_srgb && !bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
+				color.rgb = srgb_to_linear(color.rgb);
+			}
+		}
 	}
 
 	if (bool(params.flags & FLAG_USE_COLOR_CORRECTION)) {
-		// apply_color_correction requires nonlinear sRGB encoding
-		if (!convert_to_srgb) {
+		// apply_color_correction requires values to be nonlinear sRGB encoded.
+		// When convert_to_srgb is true or when BCS was applied with nonlinear sRGB encoding, the encoding has already been done.
+		if (!convert_to_srgb && !(bool(params.flags & FLAG_USE_BCS) && bool(params.flags & FLAG_BCS_MIN_TRANSFORMATIONS))) {
 			color.rgb = linear_to_srgb(color.rgb);
 		}
 		color.rgb = apply_color_correction(color.rgb);
