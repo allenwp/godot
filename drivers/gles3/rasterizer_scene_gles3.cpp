@@ -2369,7 +2369,7 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 		tonemap_ubo.white = environment_get_white(render_data.environment);
 		tonemap_ubo.tonemapper = int32_t(environment_get_tone_mapper(render_data.environment));
 
-		tonemap_ubo.brightness = environment_get_adjustments_brightness(render_data.environment);
+		tonemap_ubo.brightness = environment_get_adjustments_brightness_scaled(render_data.environment);
 		tonemap_ubo.contrast = environment_get_adjustments_contrast(render_data.environment);
 		tonemap_ubo.saturation = environment_get_adjustments_saturation(render_data.environment);
 	}
