@@ -432,39 +432,35 @@ vec3 apply_glow(vec3 color, vec3 glow) { // apply glow using the selected blendi
 	if (params.glow_mode == GLOW_MODE_ADD) {
 		return color + glow;
 	} else if (params.glow_mode == GLOW_MODE_SCREEN) {
-		// Compress the color and glow from scene intensity to avoid artifacts due to color clamping,
-		// perform the screen blend mode (color + glow - color * glow),
-		// and expand the color back to the original intensity range.
+		// Scale to [0, 1] range.
+		// Glow cannot be above 1.0 after scaling and should be non-negative
+		// to produce expected results. It is possible that glow can be negative
+		// if negative lights were used in the scene.
+		glow.rgb = clamp(glow.rgb, 0.0, params.white);
+		color.rgb /= params.white;
+		glow.rgb /= params.white;
 
-		// Trivial implementation of the screen blend mode
-		// color /= params.output_max_value;
-		// glow /= params.output_max_value;
-		// glow = clamp(glow, vec3(0.0f), vec3(1.0f));
-		// color = max((color + glow) - (color * glow), vec3(0.0));
-		// color *= params.output_max_value;
+		color = (color + glow) - (color * glow);
 
-		// The following is a mathematically simplified version of the above.
-		glow = clamp(glow / params.output_max_value, 0.0, 1.0);
-		color = color + (params.output_max_value - color) * glow;
-		color = max(color, 0.0);
-
+		// Scale back to full range
+		color.rgb *= params.white;
 		return color;
 	} else if (params.glow_mode == GLOW_MODE_SOFTLIGHT) {
-		// Compress the color and glow from scene intensity to avoid artifacts due to the color clamping.
-		color /= params.output_max_value;
-		glow /= params.output_max_value;
+		// Scale to [0, 1] range.
+		// Glow cannot be above 1.0 after scaling and should be non-negative
+		// to produce expected results. It is possible that glow can be negative
+		// if negative lights were used in the scene.
+		glow.rgb = clamp(glow.rgb, 0.0, params.white);
+		color.rgb /= params.white;
+		glow.rgb /= params.white;
 
-		// Needs color clamping.
-		glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
 		glow = glow * vec3(0.5f) + vec3(0.5f);
-
 		color.r = (glow.r <= 0.5f) ? (color.r - (1.0f - 2.0f * glow.r) * color.r * (1.0f - color.r)) : (((glow.r > 0.5f) && (color.r <= 0.25f)) ? (color.r + (2.0f * glow.r - 1.0f) * (4.0f * color.r * (4.0f * color.r + 1.0f) * (color.r - 1.0f) + 7.0f * color.r)) : (color.r + (2.0f * glow.r - 1.0f) * (sqrt(color.r) - color.r)));
 		color.g = (glow.g <= 0.5f) ? (color.g - (1.0f - 2.0f * glow.g) * color.g * (1.0f - color.g)) : (((glow.g > 0.5f) && (color.g <= 0.25f)) ? (color.g + (2.0f * glow.g - 1.0f) * (4.0f * color.g * (4.0f * color.g + 1.0f) * (color.g - 1.0f) + 7.0f * color.g)) : (color.g + (2.0f * glow.g - 1.0f) * (sqrt(color.g) - color.g)));
 		color.b = (glow.b <= 0.5f) ? (color.b - (1.0f - 2.0f * glow.b) * color.b * (1.0f - color.b)) : (((glow.b > 0.5f) && (color.b <= 0.25f)) ? (color.b + (2.0f * glow.b - 1.0f) * (4.0f * color.b * (4.0f * color.b + 1.0f) * (color.b - 1.0f) + 7.0f * color.b)) : (color.b + (2.0f * glow.b - 1.0f) * (sqrt(color.b) - color.b)));
 
-		// Expand the color back to the original intensity range.
-		color *= params.output_max_value;
-
+		// Scale back to full range
+		color.rgb *= params.white;
 		return color;
 	} else { //replace
 		return glow;
@@ -914,12 +910,20 @@ void main() {
 		color.rgb = do_fxaa(color.rgb, exposure, uv_interp);
 	}
 
-	if (bool(params.flags & FLAG_USE_GLOW) && params.glow_mode == GLOW_MODE_MIX) {
+	if (bool(params.flags & FLAG_USE_GLOW)) {
 		vec3 glow = gather_glow(source_glow, uv_interp) * params.luminance_multiplier;
-		if (params.glow_map_strength > 0.001) {
-			glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
+		if (params.glow_mode == GLOW_MODE_MIX) {
+			if (params.glow_map_strength > 0.001) {
+				glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
+			}
+			color.rgb = mix(color.rgb, glow, params.glow_intensity);
+		} else {
+			glow *= params.glow_intensity;
+			if (params.glow_map_strength > 0.001) {
+				glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
+			}
+			color.rgb = apply_glow(color.rgb, glow);
 		}
-		color.rgb = mix(color.rgb, glow, params.glow_intensity);
 	}
 #endif
 
@@ -929,23 +933,6 @@ void main() {
 	if (convert_to_srgb) {
 		color.rgb = linear_to_srgb(color.rgb); // Regular linear -> SRGB conversion.
 	}
-#ifndef SUBPASS
-	// Glow
-	if (bool(params.flags & FLAG_USE_GLOW) && params.glow_mode != GLOW_MODE_MIX) {
-		vec3 glow = gather_glow(source_glow, uv_interp) * params.glow_intensity * params.luminance_multiplier;
-		if (params.glow_map_strength > 0.001) {
-			glow = mix(glow, texture(glow_map, uv_interp).rgb * glow, params.glow_map_strength);
-		}
-
-		// high dynamic range -> SRGB
-		glow = apply_tonemapping(glow);
-		if (convert_to_srgb) {
-			glow = linear_to_srgb(glow);
-		}
-
-		color.rgb = apply_glow(color.rgb, glow);
-	}
-#endif
 
 	// Additional effects
 
