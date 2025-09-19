@@ -1,5 +1,6 @@
 layout(std140) uniform TonemapData { //ubo:0
 	float exposure;
+	float white;
 	int tonemapper;
 	float tonemap_a;
 	float tonemap_b;
