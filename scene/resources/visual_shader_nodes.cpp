@@ -3258,7 +3258,7 @@ String VisualShaderNodeColorFunc::generate_code(Shader::Mode p_mode, VisualShade
 			code += "	{\n";
 			if (RenderingServer::get_singleton()->is_low_end()) {
 				code += "		vec3 c = " + p_input_vars[0] + ";\n";
-				code += "		" + p_output_vars[0] + " = max(vec3(1.055) * pow(c, vec3(0.416666667)) - vec3(0.055), vec3(0.0));\n";
+				code += "		" + p_output_vars[0] + " = pow(c, vec3(1/2.23333664344136));\n";
 			} else {
 				code += "		vec3 c = clamp(" + p_input_vars[0] + ", vec3(0.0), vec3(1.0));\n";
 				code += "		const vec3 a = vec3(0.055f);\n";
@@ -3270,7 +3270,7 @@ String VisualShaderNodeColorFunc::generate_code(Shader::Mode p_mode, VisualShade
 			code += "	{\n";
 			if (RenderingServer::get_singleton()->is_low_end()) {
 				code += "		vec3 c = " + p_input_vars[0] + ";\n";
-				code += "		" + p_output_vars[0] + " = c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878);\n";
+				code += "		" + p_output_vars[0] + " = pow(c, vec3(2.23333664344136));\n";
 			} else {
 				code += "		vec3 c = " + p_input_vars[0] + ";\n";
 				code += "		" + p_output_vars[0] + " = mix(pow((c.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), c.rgb * (1.0 / 12.92), lessThan(c.rgb, vec3(0.04045)));\n";

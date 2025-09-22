@@ -44,11 +44,11 @@ layout(location = 0) out vec4 frag_color;
 
 // Don't include tonemap_inc.glsl because all we want is these functions, we don't want the uniforms
 vec3 linear_to_srgb(vec3 color) {
-	return max(vec3(1.055) * pow(color, vec3(0.416666667)) - vec3(0.055), vec3(0.0));
+	return pow(color, vec3(1 / 2.23333664344136));
 }
 
 vec3 srgb_to_linear(vec3 color) {
-	return color * (color * (color * 0.305306011 + 0.682171111) + 0.012522878);
+	return pow(color, vec3(2.23333664344136));
 }
 
 vec3 texelCoordToVec(vec2 uv, int faceID) {
