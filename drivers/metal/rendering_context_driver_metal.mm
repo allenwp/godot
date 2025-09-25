@@ -91,7 +91,6 @@ class API_AVAILABLE(macos(11.0), ios(14.0), tvos(14.0)) SurfaceLayer : public Re
 	uint32_t front = 0;
 	uint32_t count = 0;
 	bool hdr_output = false;
-	bool hdr_output_prefer_high_precision = false;
 
 public:
 	SurfaceLayer(CAMetalLayer *p_layer, id<MTLDevice> p_device) :
@@ -118,19 +117,6 @@ public:
 
 	bool is_hdr_output_enabled() const override final {
 		return hdr_output;
-	}
-
-	void set_hdr_output_prefer_high_precision(bool p_enabled) override final {
-		if (hdr_output_prefer_high_precision == p_enabled) {
-			return;
-		}
-
-		hdr_output_prefer_high_precision = p_enabled;
-		needs_resize = true;
-	}
-
-	bool get_hdr_output_prefer_high_precision() const override final {
-		return hdr_output_prefer_high_precision;
 	}
 
 	Error resize(uint32_t p_desired_framebuffer_count, RDD::DataFormat &r_format, RDD::ColorSpace &r_color_space) override final {
@@ -171,26 +157,17 @@ public:
 
 		if (hdr_output) {
 			layer.wantsExtendedDynamicRangeContent = YES;
-
-			if (hdr_output_prefer_high_precision) {
-				layer.colorspace = CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearDisplayP3);
-				r_color_space = RDD::COLOR_SPACE_SRGB_LINEAR;
-				r_format = RDD::DATA_FORMAT_R16G16B16A16_SFLOAT;
-				layer.pixelFormat = MTLPixelFormatRGBA16Float;
-			} else {
-				layer.colorspace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_PQ);
-				r_color_space = RDD::COLOR_SPACE_HDR10_ST2084;
-				r_format = RDD::DATA_FORMAT_A2R10G10B10_UNORM_PACK32;
-				layer.pixelFormat = MTLPixelFormatBGR10A2Unorm;
-			}
-
+			layer.colorspace = CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearSRGB);
+			r_color_space = RDD::COLOR_SPACE_REC709_LINEAR;
+			r_format = RDD::DATA_FORMAT_R16G16B16A16_SFLOAT;
+			layer.pixelFormat = MTLPixelFormatRGBA16Float;
 		} else {
 			layer.wantsExtendedDynamicRangeContent = NO;
 			layer.colorspace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
 
 			r_format = RDD::DATA_FORMAT_B8G8R8A8_UNORM;
 			layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-			r_color_space = RDD::COLOR_SPACE_SRGB_NONLINEAR;
+			r_color_space = RDD::COLOR_SPACE_REC709_NONLINEAR_SRGB;
 		}
 
 		return OK;

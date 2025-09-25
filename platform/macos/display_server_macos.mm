@@ -1846,21 +1846,34 @@ float DisplayServerMacOS::screen_get_max_luminance(int p_screen) const {
 
 	p_screen = _get_screen_index(p_screen);
 	NSScreen *screen = NSScreen.screens[p_screen];
-	return screen.maximumExtendedDynamicRangeColorComponentValue * 100.0;
+
+	// Note: this absolute nits value is incorrect when reference luminance is below 100 nits.
+	return screen.maximumPotentialExtendedDynamicRangeColorComponentValue * 100.0f;
 }
 
 float DisplayServerMacOS::screen_get_max_full_frame_luminance(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
-	p_screen = _get_screen_index(p_screen);
-	NSScreen *screen = NSScreen.screens[p_screen];
-	return screen.maximumExtendedDynamicRangeColorComponentValue * 100.0;
+	return screen_get_reference_luminance(p_screen); // macOS provides no way of reading this information about the screen.
 }
 
-float DisplayServerMacOS::screen_get_sdr_white_level(int p_screen) const {
+float DisplayServerMacOS::screen_get_reference_luminance(int p_screen) const {
 	// Per https://developer.apple.com/documentation/metal/performing-your-own-tone-mapping?language=objc#Understand-EDR-Pixel-Values,
 	// the SDR white level is always 1.0.
-	return 100.0f; // 100 nits.
+
+	p_screen = _get_screen_index(p_screen);
+	NSScreen *screen = NSScreen.screens[p_screen];
+
+	// Note: this absolute nits value is incorrect when reference luminance is below 100 nits.
+	float max_luminance = screen.maximumPotentialExtendedDynamicRangeColorComponentValue * 100.0f;
+
+	float maximum_value = screen.maximumReferenceExtendedDynamicRangeColorComponentValue;
+	if (maximum_value <= 0.0) {
+		maximum_value = screen.maximumExtendedDynamicRangeColorComponentValue;
+	}
+
+	// Note: this absolute nits value is incorrect when reference luminance is below 100 nits.
+	return max_luminance / maximum_value;
 }
 
 Vector<DisplayServer::WindowID> DisplayServerMacOS::get_window_list() const {
@@ -3011,11 +3024,23 @@ void DisplayServerMacOS::_update_hdr_output_for_window(DisplayServer::WindowID p
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
 
-		CGFloat max_edr_ccv = screen.maximumExtendedDynamicRangeColorComponentValue * 100.0f; // Convert to nits.
-		rendering_context->window_set_hdr_output_max_luminance(p_window, max_edr_ccv);
+		// Note: this absolute nits value is incorrect when reference luminance is below 100 nits.
+		float max_luminance = screen.maximumPotentialExtendedDynamicRangeColorComponentValue * 100.0f;
 
-		// TODO(sgc): Is this correct? 203 nits is also a common reference luminance.
-		rendering_context->window_set_hdr_output_reference_luminance(p_window, 100.0);
+		float maximum_value = screen.maximumReferenceExtendedDynamicRangeColorComponentValue;
+		if (maximum_value <= 0.0) {
+			maximum_value = screen.maximumExtendedDynamicRangeColorComponentValue;
+		}
+
+		// Note: this absolute nits value is incorrect when reference luminance is below 100 nits.
+		float reference_luminance = max_luminance / maximum_value;
+
+		rendering_context->window_set_hdr_output_reference_luminance(p_window, reference_luminance);
+
+		if (p_wd.hdr_output_auto_adjust_max_luminance) {
+			rendering_context->window_set_hdr_output_max_luminance(p_window, max_luminance);
+		}
+
 #pragma clang diagnostic pop
 	}
 #endif
@@ -3027,6 +3052,10 @@ void DisplayServerMacOS::update_screen_parameters() {
 			_update_hdr_output_for_window(E.key, E.value);
 		}
 	}
+}
+
+bool DisplayServerMacOS::window_is_hdr_output_supported(WindowID p_window) const {
+	return true; // allenwp: temporary rebase hack
 }
 
 void DisplayServerMacOS::window_set_hdr_output_enabled(const bool p_enabled, WindowID p_window) {
@@ -3078,22 +3107,18 @@ bool DisplayServerMacOS::window_is_hdr_output_preferring_high_precision(WindowID
 	return false;
 }
 
-void DisplayServerMacOS::window_set_hdr_output_use_screen_luminance(const bool p_enabled, WindowID p_window) {
-	// Apple platforms only support using screen luminance
+void DisplayServerMacOS::window_set_hdr_output_auto_adjust_reference_luminance(const bool p_enabled, WindowID p_window) {
+	// Apple platforms only support using system reference luminance.
 }
 
-bool DisplayServerMacOS::window_is_hdr_output_using_screen_luminance(WindowID p_window) const {
-	ERR_FAIL_V_MSG(true, "Not implemented");
+bool DisplayServerMacOS::window_is_hdr_output_auto_adjusting_reference_luminance(WindowID p_window) const {
+	return true;
 }
 
 void DisplayServerMacOS::window_set_hdr_output_reference_luminance(const float p_reference_luminance, WindowID p_window) {
-	_THREAD_SAFE_METHOD_
-
-#if defined(RD_ENABLED)
-	if (rendering_context) {
-		rendering_context->window_set_hdr_output_reference_luminance(p_window, p_reference_luminance);
-	}
-#endif
+	// Apple platforms do not support adjusting reference luminance because
+	// there are easy to find user-facing brightness settings built into the OS.
+	ERR_FAIL_MSG("Cannot set reference luminance on Mac OS; use system brightness setting instead.");
 }
 
 float DisplayServerMacOS::window_get_hdr_output_reference_luminance(WindowID p_window) const {
@@ -3107,7 +3132,56 @@ float DisplayServerMacOS::window_get_hdr_output_reference_luminance(WindowID p_w
 	return 0.0f;
 }
 
+void DisplayServerMacOS::window_set_hdr_output_auto_adjust_max_luminance(const bool p_enabled, WindowID p_window) {
+	_THREAD_SAFE_METHOD_
+
+	WindowData &wd = windows[p_window];
+	if (wd.hdr_output_auto_adjust_max_luminance == p_enabled) {
+		return;
+	}
+
+	wd.hdr_output_auto_adjust_max_luminance = p_enabled;
+
+	if (wd.hdr_output_auto_adjust_max_luminance) {
+		WindowData *wd = windows.getptr(p_window);
+		ERR_FAIL_NULL(wd);
+		wd->hdr_output_requested = p_enabled;
+		_update_hdr_output_for_window(p_window, *wd);
+	} else {
+		// Apply the previously set maximum luminance.
+#if defined(RD_ENABLED)
+		if (rendering_context) {
+			rendering_context->window_set_hdr_output_max_luminance(p_window, wd.hdr_output_max_luminance);
+		}
+#endif
+	}
+}
+
+bool DisplayServerMacOS::window_is_hdr_output_auto_adjusting_max_luminance(WindowID p_window) const {
+	_THREAD_SAFE_METHOD_
+
+	const WindowData &wd = windows[p_window];
+	return wd.hdr_output_auto_adjust_max_luminance;
+}
+
 void DisplayServerMacOS::window_set_hdr_output_max_luminance(const float p_max_luminance, WindowID p_window) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND_MSG(p_max_luminance < 0.0f, "Maximum luminance must be non-negative.");
+
+	WindowData &wd = windows[p_window];
+	wd.hdr_output_max_luminance = p_max_luminance;
+
+	// If the maximum luminance is set to auto-adjust, don't apply it.
+	if (wd.hdr_output_auto_adjust_max_luminance) {
+		return;
+	}
+
+#if defined(RD_ENABLED)
+	if (rendering_context) {
+		rendering_context->window_set_hdr_output_max_luminance(p_window, p_max_luminance);
+	}
+#endif
 }
 
 float DisplayServerMacOS::window_get_hdr_output_max_luminance(WindowID p_window) const {
@@ -3119,6 +3193,18 @@ float DisplayServerMacOS::window_get_hdr_output_max_luminance(WindowID p_window)
 #endif
 
 	return 0.0f;
+}
+
+float DisplayServerMacOS::window_get_output_max_value(WindowID p_window) const {
+	_THREAD_SAFE_METHOD_
+
+#if defined(RD_ENABLED)
+	if (rendering_context) {
+		return rendering_context->window_get_output_max_value(p_window);
+	}
+#endif
+
+	return 1.0f; // SDR
 }
 
 int DisplayServerMacOS::accessibility_should_increase_contrast() const {
