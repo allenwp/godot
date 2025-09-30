@@ -703,7 +703,7 @@ public:
 	virtual void window_set_hdr_output_max_luminance(const float p_max_luminance, WindowID p_window = MAIN_WINDOW_ID) override;
 	virtual float window_get_hdr_output_max_luminance(WindowID p_window = MAIN_WINDOW_ID) const override;
 
-	virtual float window_get_hdr_output_max_value(WindowID p_window = MAIN_WINDOW_ID) const override;
+	virtual float window_get_output_max_value(WindowID p_window = MAIN_WINDOW_ID) const override;
 
 	virtual void window_start_drag(WindowID p_window = MAIN_WINDOW_ID) override;
 	virtual void window_start_resize(WindowResizeEdge p_edge, WindowID p_window = MAIN_WINDOW_ID) override;

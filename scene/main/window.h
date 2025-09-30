@@ -363,7 +363,7 @@ public:
 	void set_hdr_output_max_luminance(float p_max_luminance);
 	float get_hdr_output_max_luminance() const;
 
-	float get_hdr_output_max_value() const;
+	float get_output_max_value() const;
 
 	bool is_maximize_allowed() const;
 

@@ -374,7 +374,7 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 			// If the viewport is tonemapping to the screen, we need to adjust the maximum value for tonemapping.
 			if (adjust_tonemap_max_value) {
 				RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
-				float max_value = context_driver->window_get_hdr_output_max_value(parent_window);
+				float max_value = context_driver->window_get_output_max_value(parent_window);
 				RSG::scene->environment_set_max_value(environment, max_value);
 			} else {
 				RSG::scene->environment_set_max_value(environment, 1.0f);

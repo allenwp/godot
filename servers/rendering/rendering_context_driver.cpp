@@ -139,13 +139,14 @@ float RenderingContextDriver::window_get_hdr_output_max_luminance(DisplayServer:
 	}
 }
 
-float RenderingContextDriver::window_get_hdr_output_max_value(DisplayServer::WindowID p_window) const {
+float RenderingContextDriver::window_get_output_max_value(DisplayServer::WindowID p_window) const {
 	SurfaceID surface = surface_get_from_window(p_window);
 	if (surface) {
-		return surface_get_hdr_output_max_value(surface);
-	} else {
-		return 1.0f;
+		if (surface_get_hdr_output_enabled(surface)) {
+			return surface_get_hdr_output_max_value(surface);
+		}
 	}
+	return 1.0f; // SDR
 }
 
 void RenderingContextDriver::window_destroy(DisplayServer::WindowID p_window) {

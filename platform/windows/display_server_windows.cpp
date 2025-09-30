@@ -4749,18 +4749,16 @@ float DisplayServerWindows::window_get_hdr_output_max_luminance(WindowID p_windo
 	return 0.0f;
 }
 
-float DisplayServerWindows::window_get_hdr_output_max_value(WindowID p_window) const {
+float DisplayServerWindows::window_get_output_max_value(WindowID p_window) const {
 	_THREAD_SAFE_METHOD_
 
 #if defined(RD_ENABLED)
 	if (rendering_context) {
-		if (rendering_context->window_get_hdr_output_enabled(p_window)) {
-			return rendering_context->window_get_hdr_output_max_value(p_window);
-		}
+		return rendering_context->window_get_output_max_value(p_window);
 	}
 #endif
 
-	return 1.0f;
+	return 1.0f; // SDR
 }
 
 void DisplayServerWindows::window_start_drag(WindowID p_window) {

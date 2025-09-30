@@ -2191,16 +2191,6 @@
 				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
 			</description>
 		</method>
-		<method name="window_get_hdr_output_max_value" qualifiers="const">
-			<return type="float" />
-			<param index="0" name="window_id" type="int" default="0" />
-			<description>
-				Returns the maximum value for color components that can be displayed in HDR mode for the window specified by [param window_id].
-				Use this to scale HDR content to max out the display's brightness, for example lasers or other bright effects.
-				Will return 1.0 if HDR is not enabled or not supported.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
-			</description>
-		</method>
 		<method name="window_get_hdr_output_reference_luminance" qualifiers="const">
 			<return type="float" />
 			<param index="0" name="window_id" type="int" default="0" />
@@ -2237,6 +2227,15 @@
 			<description>
 				Returns internal structure pointers for use in plugins.
 				[b]Note:[/b] This method is implemented on Android, Linux (X11/Wayland), macOS, and Windows.
+			</description>
+		</method>
+		<method name="window_get_output_max_value" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="window_id" type="int" default="0" />
+			<description>
+				Returns the maximum value for color components that can be displayed in HDR mode for the window specified by [param window_id].
+				Use this to scale HDR content to max out the display's brightness, for example lasers or other bright effects.
+				Will return 1.0 if HDR is not enabled or not supported.
 			</description>
 		</method>
 		<method name="window_get_popup_safe_rect" qualifiers="const">

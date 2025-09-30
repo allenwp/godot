@@ -706,11 +706,11 @@ float Window::get_hdr_output_max_luminance() const {
 	return hdr_output_max_luminance;
 }
 
-float Window::get_hdr_output_max_value() const {
+float Window::get_output_max_value() const {
 	ERR_READ_THREAD_GUARD_V(1.0f);
 
 	if (window_id != DisplayServer::INVALID_WINDOW_ID) {
-		return DisplayServer::get_singleton()->window_get_hdr_output_max_value(window_id);
+		return DisplayServer::get_singleton()->window_get_output_max_value(window_id);
 	}
 
 	return 1.0f;
@@ -3373,7 +3373,7 @@ void Window::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_hdr_output_max_luminance", "max_luminance"), &Window::set_hdr_output_max_luminance);
 	ClassDB::bind_method(D_METHOD("get_hdr_output_max_luminance"), &Window::get_hdr_output_max_luminance);
 
-	ClassDB::bind_method(D_METHOD("get_hdr_output_max_value"), &Window::get_hdr_output_max_value);
+	ClassDB::bind_method(D_METHOD("get_output_max_value"), &Window::get_output_max_value);
 
 	ClassDB::bind_method(D_METHOD("is_maximize_allowed"), &Window::is_maximize_allowed);
 

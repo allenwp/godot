@@ -114,18 +114,18 @@
 				Returns the focused window.
 			</description>
 		</method>
-		<method name="get_hdr_output_max_value" qualifiers="const">
+		<method name="get_layout_direction" qualifiers="const">
+			<return type="int" enum="Window.LayoutDirection" />
+			<description>
+				Returns layout direction and text writing direction.
+			</description>
+		</method>
+		<method name="get_output_max_value" qualifiers="const">
 			<return type="float" />
 			<description>
 				Returns the maximum value for color components that can be displayed in HDR mode for this window.
 				Use this to scale HDR content to max out the display's brightness, for example lasers or other bright effects.
 				Will return 1.0 if HDR is not enabled or not supported.
-			</description>
-		</method>
-		<method name="get_layout_direction" qualifiers="const">
-			<return type="int" enum="Window.LayoutDirection" />
-			<description>
-				Returns layout direction and text writing direction.
 			</description>
 		</method>
 		<method name="get_position_with_decorations" qualifiers="const">
