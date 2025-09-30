@@ -377,7 +377,7 @@ public:
 	virtual float screen_get_min_luminance(int p_screen = SCREEN_OF_MAIN_WINDOW) const { return 0.0f; }
 	virtual float screen_get_max_luminance(int p_screen = SCREEN_OF_MAIN_WINDOW) const { return 0.0f; }
 	virtual float screen_get_max_full_frame_luminance(int p_screen = SCREEN_OF_MAIN_WINDOW) const { return 0.0f; }
-	virtual float screen_get_sdr_white_level(int p_screen = SCREEN_OF_MAIN_WINDOW) const { return 0.0f; }
+	virtual float screen_get_reference_luminance(int p_screen = SCREEN_OF_MAIN_WINDOW) const { return 0.0f; }
 
 	// Keep the ScreenOrientation enum values in sync with the `display/window/handheld/orientation`
 	// project setting hint.

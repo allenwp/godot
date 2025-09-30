@@ -1716,7 +1716,7 @@ static BOOL CALLBACK _MonitorEnumProcSdrWhiteLevel(HMONITOR hMonitor, HDC hdcMon
 	return FALSE;
 }
 
-float DisplayServerWindows::screen_get_sdr_white_level(int p_screen) const {
+float DisplayServerWindows::screen_get_reference_luminance(int p_screen) const {
 	_THREAD_SAFE_METHOD_
 
 	const float default_return = 0.0f;
@@ -3379,7 +3379,7 @@ DisplayServerWindows::ScreenHdrData DisplayServerWindows::_get_screen_hdr_data(i
 	data.max_average_luminance = 0.0f;
 #endif // D3D12_ENABLED
 
-	data.sdr_white_level = screen_get_sdr_white_level(p_screen);
+	data.sdr_white_level = screen_get_reference_luminance(p_screen);
 	return data;
 }
 

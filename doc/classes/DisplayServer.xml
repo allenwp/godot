@@ -1805,6 +1805,16 @@
 				[b]Note:[/b] One of the following constants can be used as [param screen]: [constant SCREEN_OF_MAIN_WINDOW], [constant SCREEN_PRIMARY], [constant SCREEN_WITH_MOUSE_FOCUS], or [constant SCREEN_WITH_KEYBOARD_FOCUS].
 			</description>
 		</method>
+		<method name="screen_get_reference_luminance" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="screen" type="int" default="-1" />
+			<description>
+				Returns the standard dynamic range (SDR) white level of [param screen] in nits (cd/m²).
+				This is the maximum brightness SDR content (such as UI) should be rendered at to match other applications on the display.
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] This method is intended to be informational and may not be implemented even if [constant FEATURE_HDR] is supported.
+			</description>
+		</method>
 		<method name="screen_get_refresh_rate" qualifiers="const">
 			<return type="float" />
 			<param index="0" name="screen" type="int" default="-1" />
@@ -1829,16 +1839,6 @@
 				[b]Note:[/b] On macOS, the returned value is [code]2.0[/code] for hiDPI (Retina) screens, and [code]1.0[/code] for all other cases.
 				[b]Note:[/b] On Linux (Wayland), the returned value is accurate only when [param screen] is [constant SCREEN_OF_MAIN_WINDOW]. Due to API limitations, passing a direct index will return a rounded-up integer, if the screen has a fractional scale (e.g. [code]1.25[/code] would get rounded up to [code]2.0[/code]).
 				[b]Note:[/b] This method is implemented on Android, iOS, Web, macOS, and Linux (Wayland). On other platforms, this method always returns [code]1.0[/code].
-			</description>
-		</method>
-		<method name="screen_get_sdr_white_level" qualifiers="const">
-			<return type="float" />
-			<param index="0" name="screen" type="int" default="-1" />
-			<description>
-				Returns the standard dynamic range (SDR) white level of [param screen] in nits (cd/m²).
-				This is the maximum brightness SDR content (such as UI) should be rendered at to match other applications on the display.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
-				[b]Note:[/b] This method is intended to be informational and may not be implemented even if [constant FEATURE_HDR] is supported.
 			</description>
 		</method>
 		<method name="screen_get_size" qualifiers="const">
