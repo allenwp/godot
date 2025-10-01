@@ -10,7 +10,6 @@ USE_LUMINANCE_MULTIPLIER = false
 USE_BCS = false
 USE_COLOR_CORRECTION = false
 USE_1D_LUT = false
-USE_LEGACY_MODE = false
 
 #[vertex]
 layout(location = 0) in vec2 vertex_attrib;
@@ -59,6 +58,10 @@ vec4 get_glow_color(vec2 uv) {
 	color += textureLod(glow_color, uv + vec2(0.0, -half_pixel.y * 2.0), 0.0);
 	color += textureLod(glow_color, uv + vec2(-half_pixel.x, -half_pixel.y), 0.0) * 2.0;
 
+#ifdef USE_LUMINANCE_MULTIPLIER
+	glow = glow / luminance_multiplier;
+#endif
+
 	return color / 12.0;
 }
 #endif // USE_GLOW
@@ -103,27 +106,17 @@ void main() {
 	vec4 color = texture(source_color, uv_interp);
 #endif
 
-#ifdef USE_LEGACY_MODE
-#ifdef USE_GLOW
-	vec4 glow = get_glow_color(uv_interp) * glow_intensity;
-
-	// Just use screen...
-	glow.rgb = clamp(glow.rgb, vec3(0.0f), vec3(1.0f));
-	color.rgb = max((color.rgb + glow.rgb) - (color.rgb * glow.rgb), vec3(0.0));
-#endif // USE_GLOW
-#endif // USE_LEGACY_MODE
-
 #ifdef USE_LUMINANCE_MULTIPLIER
 	color = color / luminance_multiplier;
 #endif
 
-#ifndef USE_LEGACY_MODE
 #ifdef USE_GLOW
-	vec4 glow = get_glow_color(uv_interp);
-#ifdef USE_LUMINANCE_MULTIPLIER
-	glow = glow / luminance_multiplier;
-#endif
-	glow = glow * glow_intensity;
+	// Glow blending is performed before srgb_to_linear because
+	// the glow texture was created from a nonlinear sRGB-encoded
+	// scene, so it only makes sense to add this glow to an equally
+	// nonlinear sRGB-encoded scene.
+
+	vec4 glow = get_glow_color(uv_interp) * glow_intensity;
 
 	// Glow always uses the screen blend mode in the Compatibility renderer:
 
@@ -143,7 +136,6 @@ void main() {
 	// The following is a mathematically simplified version of the above.
 	color.rgb = color.rgb + glow.rgb - (color.rgb * glow.rgb / white);
 #endif // USE_GLOW
-#endif // !USE_LEGACY_MODE
 
 	color.rgb = srgb_to_linear(color.rgb);
 	color.rgb = apply_tonemapping(color.rgb, white);

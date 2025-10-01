@@ -128,7 +128,6 @@
 		<member name="glow_blend_mode" type="int" setter="set_glow_blend_mode" getter="get_glow_blend_mode" enum="Environment.GlowBlendMode" default="1">
 			The glow blending mode.
 			[b]Note:[/b] The Compatibility renderer always uses [constant GLOW_BLEND_MODE_SCREEN] and [member glow_blend_mode] will have no effect.
-			[b]Note:[/b] Set [member ProjectSettings.rendering/environment/use_legacy_mode] to use the glow blending behavior from Godot 4.5 and earlier.
 		</member>
 		<member name="glow_bloom" type="float" setter="set_glow_bloom" getter="get_glow_bloom" default="0.0">
 			The bloom's intensity. If set to a value higher than [code]0[/code], this will make glow visible in areas darker than the [member glow_hdr_threshold].
@@ -137,7 +136,6 @@
 			If [code]true[/code], the glow effect is enabled. This simulates real world atmosphere and eye/camera behavior by causing bright pixels bleed onto surrounding pixels.
 			[b]Note:[/b] When using the Mobile rendering method, glow looks different due to the lower dynamic range available in the Mobile rendering method.
 			[b]Note:[/b] When using the Compatibility rendering method, glow uses a different implementation with some properties being unavailable and hidden from the inspector: [code]glow_levels/*[/code], [member glow_normalized], [member glow_strength], [member glow_blend_mode], [member glow_mix], [member glow_map], and [member glow_map_strength]. This implementation is optimized to run on low-end devices and is less flexible as a result.
-			[b]Note:[/b] Set [member ProjectSettings.rendering/environment/use_legacy_mode] to use the glow blending behavior from Godot 4.5 and earlier.
 		</member>
 		<member name="glow_hdr_luminance_cap" type="float" setter="set_glow_hdr_luminance_cap" getter="get_glow_hdr_luminance_cap" default="12.0">
 			The higher threshold of the HDR glow. Areas brighter than this threshold will be clamped for the purposes of the glow effect.
@@ -443,8 +441,7 @@
 			Adds the glow effect to the scene after modifying the glow influence based on the scene value; dark values will be highly influenced by glow and bright values will not be influenced by glow. This approach avoids bright values becoming overly bright from the glow effect. [member tonemap_white] is used to determine the maximum scene value where the glow should have no influence. When [member tonemap_mode] is set to [constant TONE_MAPPER_LINEAR], a value of [code]1.0[/code] will be used as the maximum scene value.
 		</constant>
 		<constant name="GLOW_BLEND_MODE_SOFTLIGHT" value="2" enum="GlowBlendMode">
-			Adds the glow effect to the image after modifying the glow influence based on the image value; dark values and bright values will not be influenced by glow and mid-range values will be highly influenced by glow. This approach avoids bright values becoming overly bright from the glow effect. The glow will have no effect when applied to scene values greater than [code]1.0[/code].
-			[b]Note:[/b] With the soft light blend mode, glow will have the largest influence on linear scene values of [code]0.25[/code] unless [member ProjectSettings.rendering/environment/use_legacy_mode] and [member Viewport.use_hdr_2d] are [code]true[/code], in which case it will have the largest influence on linear scene values of [code]0.051[/code].
+			Adds the glow effect to the image after modifying the glow influence based on the image value; dark values and bright values will not be influenced by glow and mid-range values will be highly influenced by glow. This approach avoids bright values becoming overly bright from the glow effect. The glow will have the largest influence on linear scene values of [code]0.25[/code] have no effect when applied to scene values greater than [code]1.0[/code].
 		</constant>
 		<constant name="GLOW_BLEND_MODE_REPLACE" value="3" enum="GlowBlendMode">
 			Replaces all pixels' color by the glow effect. This can be used to simulate a full-screen blur effect by tweaking the glow parameters to match the original image's brightness or to preview glow configuration in the editor.
