@@ -539,9 +539,6 @@ void EditorNode::_update_from_settings() {
 	scene_root->set_use_hdr_2d(use_hdr_2d || force_hdr_2d);
 	get_viewport()->set_use_hdr_2d(use_hdr_2d || force_hdr_2d);
 
-	scene_root->set_tonemap_to_window(true);
-	get_viewport()->set_tonemap_to_window(true);
-
 	float mesh_lod_threshold = GLOBAL_GET("rendering/mesh_lod/lod_change/threshold_pixels");
 	scene_root->set_mesh_lod_threshold(mesh_lod_threshold);
 

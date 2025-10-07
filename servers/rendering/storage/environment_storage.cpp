@@ -229,19 +229,25 @@ float RendererEnvironmentStorage::environment_get_exposure(RID p_env) const {
 	return env->exposure;
 }
 
-float RendererEnvironmentStorage::environment_get_white(RID p_env) const {
+float RendererEnvironmentStorage::environment_get_white(RID p_env, float p_output_max_value) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
 
-	if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD) {
+	if (env->tone_mapper == RS::ENV_TONE_MAPPER_LINEAR) {
+		return p_output_max_value;
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD) {
 		// The Reinhard tonemapper is not designed to have a white parameter
 		// that is less than the output max value. This is especially important
 		// in the variable Extended Dynamic Range (EDR) paradigm where the
 		// output max value may change to be greater or less than the white
 		// parameter, depending on the available dynamic range.
-		return MAX(env->max_value, env->white);
+		return MAX(p_output_max_value, env->white);
+	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
+		float agx_white = 16.29;
 	} else {
-		return env->white;
+		// Filmic and ACES do not support HDR output; their white is stable
+		// regardless of p_output_max_value.
+		return env->white = MAX(1.0, env->white); // Glow with screen blend mode does not work when white < 1.0.
 	}
 }
 

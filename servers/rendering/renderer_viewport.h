@@ -82,7 +82,6 @@ public:
 		DisplayServer::WindowID viewport_to_screen = DisplayServer::INVALID_WINDOW_ID;
 		Rect2 viewport_to_screen_rect;
 		bool viewport_render_direct_to_screen = false;
-		bool tonemap_to_screen = false;
 
 		bool disable_2d = false;
 		RS::ViewportEnvironmentMode disable_environment = RS::VIEWPORT_ENVIRONMENT_INHERIT;
@@ -226,7 +225,6 @@ public:
 
 	void viewport_attach_to_screen(RID p_viewport, const Rect2 &p_rect = Rect2(), DisplayServer::WindowID p_screen = DisplayServer::MAIN_WINDOW_ID);
 	void viewport_set_render_direct_to_screen(RID p_viewport, bool p_enable);
-	void viewport_set_tonemap_to_screen(RID p_viewport, bool p_enable);
 
 	void viewport_set_active(RID p_viewport, bool p_active);
 	void viewport_set_parent_viewport(RID p_viewport, RID p_parent_viewport);

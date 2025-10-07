@@ -189,7 +189,7 @@ public:
 
 	virtual RS::EnvironmentToneMapper environment_get_tone_mapper(RID p_env) const = 0;
 	virtual float environment_get_exposure(RID p_env) const = 0;
-	virtual float environment_get_white(RID p_env) const = 0;
+	virtual float environment_get_white(RID p_env, float p_output_max_value) const = 0;
 	virtual float environment_get_max_value(RID p_env) const = 0;
 
 	// Fog

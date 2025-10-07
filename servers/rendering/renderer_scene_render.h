@@ -138,7 +138,7 @@ public:
 	void environment_set_max_value(RID p_env, float p_max_value);
 	RS::EnvironmentToneMapper environment_get_tone_mapper(RID p_env) const;
 	float environment_get_exposure(RID p_env) const;
-	float environment_get_white(RID p_env) const;
+	float environment_get_white(RID p_env, float p_output_max_value) const;
 	float environment_get_max_value(RID p_env) const;
 
 	// Fog

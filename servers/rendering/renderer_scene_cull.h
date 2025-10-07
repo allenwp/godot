@@ -1243,7 +1243,7 @@ public:
 	PASS2(environment_set_max_value, RID, float)
 	PASS1RC(RS::EnvironmentToneMapper, environment_get_tone_mapper, RID)
 	PASS1RC(float, environment_get_exposure, RID)
-	PASS1RC(float, environment_get_white, RID)
+	PASS2RC(float, environment_get_white, RID, float)
 	PASS1RC(float, environment_get_max_value, RID)
 
 	// Fog

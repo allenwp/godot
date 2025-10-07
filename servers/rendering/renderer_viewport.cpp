@@ -343,23 +343,6 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 		}
 	}
 
-	// Check if the viewport should be tonemapping to the screen.
-	bool adjust_tonemap_max_value = false;
-	DisplayServer::WindowID parent_window = _get_containing_window(p_viewport);
-	if (RD::get_singleton() && parent_window != DisplayServer::INVALID_WINDOW_ID) {
-		RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
-
-		if (p_viewport->tonemap_to_screen && context_driver->window_get_hdr_output_enabled(parent_window)) {
-			// Doesn't cover all possible cases, but should catch viewports that were set to tonemap to screen
-			if (!p_viewport->use_hdr_2d && !p_viewport->hdr_output_with_no_hdr_2d_warning_issued) {
-				p_viewport->hdr_output_with_no_hdr_2d_warning_issued = true;
-				WARN_PRINT_ED("Viewport is set to tonemap to screen and HDR output is enabled, but HDR 2D is not enabled. This may result in a lack of dynamic range. To fix this, enable HDR 2D in the viewport.");
-			}
-
-			adjust_tonemap_max_value = true;
-		}
-	}
-
 	if (RSG::scene->is_scenario(p_viewport->scenario)) {
 		RID environment = RSG::scene->scenario_get_environment(p_viewport->scenario);
 		if (RSG::scene->is_environment(environment)) {
@@ -371,8 +354,9 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 				force_clear_render_target = true;
 			}
 
-			// If the viewport is tonemapping to the screen, we need to adjust the maximum value for tonemapping.
-			if (adjust_tonemap_max_value && parent_window != DisplayServer::INVALID_WINDOW_ID) {
+			// TODO: instead of setting environment max value, get the hdr max value into renderer_scene_render_rd somehow
+			DisplayServer::WindowID parent_window = _get_containing_window(p_viewport);
+			if (parent_window != DisplayServer::INVALID_WINDOW_ID) {
 				RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
 				float max_value = context_driver->window_get_output_max_value(parent_window);
 				RSG::scene->environment_set_max_value(environment, max_value);
@@ -1185,13 +1169,6 @@ void RendererViewport::viewport_set_render_direct_to_screen(RID p_viewport, bool
 		RSG::texture_storage->render_target_set_size(viewport->render_target, viewport->viewport_to_screen_rect.size.x, viewport->viewport_to_screen_rect.size.y, viewport->view_count);
 		RSG::texture_storage->render_target_set_position(viewport->render_target, viewport->viewport_to_screen_rect.position.x, viewport->viewport_to_screen_rect.position.y);
 	}
-}
-
-void RendererViewport::viewport_set_tonemap_to_screen(RID p_viewport, bool p_enable) {
-	Viewport *viewport = viewport_owner.get_or_null(p_viewport);
-	ERR_FAIL_NULL(viewport);
-
-	viewport->tonemap_to_screen = p_enable;
 }
 
 void RendererViewport::viewport_set_update_mode(RID p_viewport, RS::ViewportUpdateMode p_mode) {

@@ -3687,10 +3687,6 @@ Window::Window() {
 
 	theme_owner = memnew(ThemeOwner(this));
 	RS::get_singleton()->viewport_set_update_mode(get_viewport_rid(), RS::VIEWPORT_UPDATE_DISABLED);
-
-	// Tonemap the root viewport of this window by default.
-	tonemap_to_window = true;
-	RS::get_singleton()->viewport_set_tonemap_to_screen(get_viewport_rid(), tonemap_to_window);
 }
 
 Window::~Window() {

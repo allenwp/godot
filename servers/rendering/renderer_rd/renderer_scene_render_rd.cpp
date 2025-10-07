@@ -671,10 +671,13 @@ void RendererSceneRenderRD::_render_buffers_post_process_and_tonemap(const Rende
 		tonemap.texture_size = Vector2i(color_size.x, color_size.y);
 
 		if (p_render_data->environment.is_valid()) {
+			// When using HDR 2D, we use the parent window's output max value.
+			// Otherwise, we're tonemapping to an SDR low bit depth buffer, so
+			// we need to use SDR range with a max value of 1.0.
+			tonemap.max_value = using_hdr ? environment_get_max_value(p_render_data->environment) : 1.0;
 			tonemap.tonemap_mode = environment_get_tone_mapper(p_render_data->environment);
-			tonemap.white = environment_get_white(p_render_data->environment);
+			tonemap.white = environment_get_white(p_render_data->environment, tonemap.max_value);
 			tonemap.exposure = environment_get_exposure(p_render_data->environment);
-			tonemap.max_value = environment_get_max_value(p_render_data->environment);
 		}
 
 		tonemap.use_color_correction = false;
@@ -892,11 +895,16 @@ void RendererSceneRenderRD::_post_process_subpass(RID p_source_texture, RID p_fr
 
 	RendererRD::ToneMapper::TonemapSettings tonemap;
 
+	bool using_hdr = texture_storage->render_target_is_using_hdr(rb->get_render_target());
+
 	if (p_render_data->environment.is_valid()) {
+		// When using HDR 2D, we use the parent window's output max value.
+		// Otherwise, we're tonemapping to an SDR low bit depth buffer, so
+		// we need to use SDR range with a max value of 1.0.
+		tonemap.max_value = using_hdr ? environment_get_max_value(p_render_data->environment) : 1.0;
 		tonemap.tonemap_mode = environment_get_tone_mapper(p_render_data->environment);
 		tonemap.exposure = environment_get_exposure(p_render_data->environment);
-		tonemap.white = environment_get_white(p_render_data->environment);
-		tonemap.max_value = environment_get_max_value(p_render_data->environment);
+		tonemap.white = environment_get_white(p_render_data->environment, tonemap.max_value);
 	}
 
 	// We don't support glow or auto exposure here, if they are needed, don't use subpasses!
@@ -909,8 +917,6 @@ void RendererSceneRenderRD::_post_process_subpass(RID p_source_texture, RID p_fr
 	if (can_use_effects && RSG::camera_attributes->camera_attributes_uses_auto_exposure(p_render_data->camera_attributes)) {
 		ERR_FAIL_MSG("Auto Exposure is not supported when using subpasses.");
 	}
-
-	bool using_hdr = texture_storage->render_target_is_using_hdr(rb->get_render_target());
 
 	tonemap.use_glow = false;
 	tonemap.glow_texture = texture_storage->texture_rd_get_default(RendererRD::TextureStorage::DEFAULT_RD_TEXTURE_BLACK);
