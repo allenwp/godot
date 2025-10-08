@@ -116,7 +116,7 @@ public:
 
 		bool transparent_bg = false;
 		bool use_hdr_2d = false;
-		bool hdr_output_with_no_hdr_2d_warning_issued = false;
+		float window_output_max_value = 1.0;
 
 		uint32_t canvas_cull_mask = 0xffffffff;
 
@@ -159,7 +159,7 @@ public:
 			clear_mode = RS::VIEWPORT_CLEAR_ALWAYS;
 			transparent_bg = false;
 			use_hdr_2d = false;
-			hdr_output_with_no_hdr_2d_warning_issued = false;
+			window_output_max_value = 1.0;
 
 			viewport_to_screen = DisplayServer::INVALID_WINDOW_ID;
 			shadow_atlas_size = 0;

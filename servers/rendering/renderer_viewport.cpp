@@ -312,7 +312,7 @@ void RendererViewport::_draw_3d(Viewport *p_viewport) {
 	}
 
 	float screen_mesh_lod_threshold = p_viewport->mesh_lod_threshold / float(p_viewport->size.width);
-	RSG::scene->render_camera(p_viewport->render_buffers, p_viewport->camera, p_viewport->scenario, p_viewport->self, p_viewport->internal_size, p_viewport->jitter_phase_count, screen_mesh_lod_threshold, p_viewport->shadow_atlas, xr_interface, &p_viewport->render_info);
+	RSG::scene->render_camera(p_viewport->render_buffers, p_viewport->camera, p_viewport->scenario, p_viewport->self, p_viewport->internal_size, p_viewport->jitter_phase_count, screen_mesh_lod_threshold, p_viewport->shadow_atlas, xr_interface, p_viewport->window_output_max_value, &p_viewport->render_info);
 
 	RENDER_TIMESTAMP("< Render 3D Scene");
 #endif // _3D_DISABLED
@@ -353,16 +353,6 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 				// The scene renderer will still copy over the last frame, so we need to clear the render target.
 				force_clear_render_target = true;
 			}
-
-			// TODO: instead of setting environment max value, get the hdr max value into renderer_scene_render_rd somehow
-			DisplayServer::WindowID parent_window = _get_containing_window(p_viewport);
-			if (parent_window != DisplayServer::INVALID_WINDOW_ID) {
-				RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
-				float max_value = context_driver->window_get_output_max_value(parent_window);
-				RSG::scene->environment_set_max_value(environment, max_value);
-			} else {
-				RSG::scene->environment_set_max_value(environment, 1.0f);
-			}
 		}
 	}
 
@@ -385,6 +375,14 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 	}
 
 	if (!scenario_draw_canvas_bg && can_draw_3d) {
+		DisplayServer::WindowID parent_window = _get_containing_window(p_viewport);
+		if (parent_window != DisplayServer::INVALID_WINDOW_ID) {
+			RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
+			p_viewport->window_output_max_value = context_driver->window_get_output_max_value(parent_window);
+		} else {
+			p_viewport->window_output_max_value = 1.0;
+		}
+
 		if (force_clear_render_target) {
 			RSG::texture_storage->render_target_do_clear_request(p_viewport->render_target);
 		}
@@ -1385,7 +1383,6 @@ void RendererViewport::viewport_set_use_hdr_2d(RID p_viewport, bool p_use_hdr_2d
 		return;
 	}
 	viewport->use_hdr_2d = p_use_hdr_2d;
-	viewport->hdr_output_with_no_hdr_2d_warning_issued = false;
 	RSG::texture_storage->render_target_set_use_hdr(viewport->render_target, p_use_hdr_2d);
 	_configure_3d_render_buffers(viewport);
 }
