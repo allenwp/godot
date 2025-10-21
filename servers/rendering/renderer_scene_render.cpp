@@ -361,8 +361,8 @@ int RendererSceneRender::environment_get_camera_feed_id(RID p_env) const {
 
 // Tonemap
 
-void RendererSceneRender::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, float p_agx_contrast) {
-	environment_storage.environment_set_tonemap(p_env, p_tone_mapper, p_exposure, p_white, p_agx_contrast);
+void RendererSceneRender::environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white) {
+	environment_storage.environment_set_tonemap(p_env, p_tone_mapper, p_exposure, p_white);
 }
 
 RS::EnvironmentToneMapper RendererSceneRender::environment_get_tone_mapper(RID p_env) const {
@@ -375,6 +375,10 @@ float RendererSceneRender::environment_get_exposure(RID p_env) const {
 
 float RendererSceneRender::environment_get_white(RID p_env) const {
 	return environment_storage.environment_get_white(p_env);
+}
+
+void RendererSceneRender::environment_set_tonemap_agx_contrast(RID p_env, float p_agx_contrast) {
+	environment_storage.environment_set_tonemap_agx_contrast(p_env, p_agx_contrast);
 }
 
 float RendererSceneRender::environment_get_tonemap_agx_contrast(RID p_env) const {

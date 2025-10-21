@@ -238,7 +238,7 @@ float Environment::get_tonemap_agx_white() const {
 
 void Environment::set_tonemap_agx_contrast(float p_agx_contrast) {
 	tonemap_agx_contrast = p_agx_contrast;
-	_update_tonemap();
+	RS::get_singleton()->environment_set_tonemap_agx_contrast(environment, p_agx_contrast);
 }
 
 float Environment::get_tonemap_agx_contrast() const {
@@ -250,8 +250,7 @@ void Environment::_update_tonemap() {
 			environment,
 			RS::EnvironmentToneMapper(tone_mapper),
 			tonemap_exposure,
-			tone_mapper == TONE_MAPPER_AGX ? tonemap_agx_white : tonemap_white,
-			tonemap_agx_contrast);
+			tone_mapper == TONE_MAPPER_AGX ? tonemap_agx_white : tonemap_white);
 }
 
 // SSR
