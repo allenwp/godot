@@ -223,7 +223,7 @@ float RendererEnvironmentStorage::environment_get_exposure(RID p_env) const {
 	return env->exposure;
 }
 
-float RendererEnvironmentStorage::environment_get_white(RID p_env) const {
+float RendererEnvironmentStorage::environment_get_white(RID p_env, bool p_limit_agx_white) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, 1.0);
 
@@ -240,11 +240,15 @@ float RendererEnvironmentStorage::environment_get_white(RID p_env) const {
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
 		// AgX works best with a high white. 2.0 is the minimum required for
 		// good behavior with Mobile rendering method.
-		float agx_white = MAX(2.0, env->white);
-		// Instead of constraining by matching the output_max_value, constrain
-		// by multiplying to ensure the desired non-uniform scaling behavior
-		// is maintained in the shoulder.
-		return agx_white * output_max_value;
+		if (p_limit_agx_white) {
+			return 2.0;
+		} else {
+			float agx_white = MAX(2.0, env->white);
+			// Instead of constraining by matching the output_max_value, constrain
+			// by multiplying to ensure the desired non-uniform scaling behavior
+			// is maintained in the shoulder.
+			return agx_white * output_max_value;
+		}
 	} else { // Reinhard
 		// The Reinhard tonemapper is not designed to have a white parameter
 		// that is less than the output max value. This is especially important
@@ -267,13 +271,13 @@ float RendererEnvironmentStorage::environment_get_tonemap_agx_contrast(RID p_env
 	return env->tonemap_agx_contrast;
 }
 
-RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::environment_get_tonemap_parameters(RID p_env) const {
+RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::environment_get_tonemap_parameters(RID p_env, bool p_limit_agx_white) const {
 	Environment *env = environment_owner.get_or_null(p_env);
 	ERR_FAIL_NULL_V(env, TonemapParameters());
 
 	const float output_max_value = 1.0; // SDR always has a output_max_value of 1.0.
 
-	float white = environment_get_white(p_env);
+	float white = environment_get_white(p_env, p_limit_agx_white);
 	TonemapParameters tonemap_parameters = TonemapParameters();
 
 	if (env->tone_mapper == RS::ENV_TONE_MAPPER_LINEAR) {
