@@ -283,8 +283,7 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 	if (env->tone_mapper == RS::ENV_TONE_MAPPER_LINEAR) {
 		// Linear has no tonemapping parameters
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_REINHARD) {
-		float white_squared = white * white;
-		tonemap_parameters.tonemap_a = white_squared;
+		tonemap_parameters.white_squared = white * white;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_FILMIC) {
 		// These constants must match those in the shader code.
 		// exposure_bias: Input scale (color *= bias, white *= bias) to make the brightness consistent with other tonemappers
@@ -298,8 +297,7 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		const float E = 0.01f;
 		const float F = 0.30f;
 
-		float white_tonemapped = ((white * (A * white + C * B) + D * E) / (white * (A * white + B) + D * F)) - E / F;
-		tonemap_parameters.tonemap_a = white_tonemapped;
+		tonemap_parameters.white_tonemapped = ((white * (A * white + C * B) + D * E) / (white * (A * white + B) + D * F)) - E / F;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_ACES) {
 		// These constants must match those in the shader code.
 		const float exposure_bias = 1.8f;
@@ -311,7 +309,7 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 
 		white *= exposure_bias;
 		float white_tonemapped = (white * (white + A) - B) / (white * (C * white + D) + E);
-		tonemap_parameters.tonemap_a = white_tonemapped;
+		tonemap_parameters.white_tonemapped = white_tonemapped;
 	} else if (env->tone_mapper == RS::ENV_TONE_MAPPER_AGX) {
 		// Calculate allenwp tonemapping curve parameters on the CPU to improve shader performance.
 		// Source and details: https://allenwp.com/blog/2025/05/29/allenwp-tonemapping-curve/
@@ -336,10 +334,10 @@ RendererEnvironmentStorage::TonemapParameters RendererEnvironmentStorage::enviro
 		awp_w = awp_w / awp_shoulder_max;
 		awp_w = awp_w * awp_slope;
 
-		tonemap_parameters.tonemap_a = env->tonemap_agx_contrast;
-		tonemap_parameters.tonemap_b = awp_toe_a;
-		tonemap_parameters.tonemap_c = awp_slope;
-		tonemap_parameters.tonemap_d = awp_w;
+		tonemap_parameters.awp_contrast = env->tonemap_agx_contrast;
+		tonemap_parameters.awp_toe_a = awp_toe_a;
+		tonemap_parameters.awp_slope = awp_slope;
+		tonemap_parameters.awp_w = awp_w;
 	}
 
 	return tonemap_parameters;

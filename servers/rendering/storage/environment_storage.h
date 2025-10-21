@@ -35,11 +35,27 @@
 
 class RendererEnvironmentStorage {
 public:
-	struct TonemapParameters {
-		float tonemap_a = 0.0;
-		float tonemap_b = 0.0;
-		float tonemap_c = 0.0;
-		float tonemap_d = 0.0;
+	union TonemapParameters {
+		// Shader vec4:
+		float tonemapper_params[4];
+
+		// Reinhard:
+		struct {
+			float white_squared;
+		};
+
+		// Filmic and ACES:
+		struct {
+			float white_tonemapped;
+		};
+
+		// AgX:
+		struct {
+			float awp_contrast;
+			float awp_toe_a;
+			float awp_slope;
+			float awp_w;
+		};
 	};
 
 private:

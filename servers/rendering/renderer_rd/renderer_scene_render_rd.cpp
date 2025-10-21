@@ -679,10 +679,10 @@ void RendererSceneRenderRD::_render_buffers_post_process_and_tonemap(const Rende
 
 			tonemap.tonemap_mode = environment_get_tone_mapper(p_render_data->environment);
 			RendererEnvironmentStorage::TonemapParameters params = environment_get_tonemap_parameters(p_render_data->environment, limit_agx_white);
-			tonemap.tonemap_a = params.tonemap_a;
-			tonemap.tonemap_b = params.tonemap_b;
-			tonemap.tonemap_c = params.tonemap_c;
-			tonemap.tonemap_d = params.tonemap_d;
+			tonemap.tonemapper_params[0] = params.tonemapper_params[0];
+			tonemap.tonemapper_params[1] = params.tonemapper_params[1];
+			tonemap.tonemapper_params[2] = params.tonemapper_params[2];
+			tonemap.tonemapper_params[3] = params.tonemapper_params[3];
 			tonemap.white = environment_get_white(p_render_data->environment, limit_agx_white);
 			tonemap.exposure = environment_get_exposure(p_render_data->environment);
 		}
@@ -911,10 +911,10 @@ void RendererSceneRenderRD::_post_process_subpass(RID p_source_texture, RID p_fr
 
 		tonemap.tonemap_mode = environment_get_tone_mapper(p_render_data->environment);
 		RendererEnvironmentStorage::TonemapParameters params = environment_get_tonemap_parameters(p_render_data->environment, limit_agx_white);
-		tonemap.tonemap_a = params.tonemap_a;
-		tonemap.tonemap_b = params.tonemap_b;
-		tonemap.tonemap_c = params.tonemap_c;
-		tonemap.tonemap_d = params.tonemap_d;
+		tonemap.tonemapper_params[0] = params.tonemapper_params[0];
+		tonemap.tonemapper_params[1] = params.tonemapper_params[1];
+		tonemap.tonemapper_params[2] = params.tonemapper_params[2];
+		tonemap.tonemapper_params[3] = params.tonemapper_params[3];
 		tonemap.exposure = environment_get_exposure(p_render_data->environment);
 		tonemap.white = environment_get_white(p_render_data->environment, limit_agx_white);
 	}

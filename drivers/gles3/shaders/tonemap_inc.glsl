@@ -1,16 +1,13 @@
 layout(std140) uniform TonemapData { //ubo:0
 	float exposure;
 	int tonemapper;
-	float tonemap_a;
-	float tonemap_b;
-	float tonemap_c;
-	float tonemap_d;
 	int pad;
 	int pad2;
-	int pad3;
+	vec4 tonemapper_params;
 	float brightness;
 	float contrast;
 	float saturation;
+	int pad3;
 };
 
 // This expects 0-1 range input.
@@ -32,7 +29,7 @@ vec3 srgb_to_linear(vec3 color) {
 
 // Based on Reinhard's extended formula, see equation 4 in https://doi.org/cjbgrt
 vec3 tonemap_reinhard(vec3 color) {
-	float white_squared = tonemap_a;
+	float white_squared = tonemapper_params.x;
 	vec3 white_squared_color = white_squared * color;
 	// Equivalent to color * (1 + color / white_squared) / (1 + color)
 	return (white_squared_color + color * color) / (white_squared_color + white_squared);
@@ -53,7 +50,7 @@ vec3 tonemap_filmic(vec3 color) {
 
 	vec3 color_tonemapped = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
 
-	return color_tonemapped / tonemap_a;
+	return color_tonemapped / tonemapper_params.x;
 }
 
 // Adapted from https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
@@ -82,7 +79,7 @@ vec3 tonemap_aces(vec3 color) {
 	vec3 color_tonemapped = (color * (color + A) - B) / (color * (C * color + D) + E);
 	color_tonemapped *= odt_to_rgb;
 
-	return color_tonemapped / tonemap_a;
+	return color_tonemapped / tonemapper_params.x;
 }
 
 // allenwp tonemapping curve; developed for use in the Godot game engine.
@@ -98,10 +95,10 @@ vec3 allenwp_curve(vec3 x) {
 	// awp_shoulder_max can be calculated on the CPU and passed in as tonemap_e.
 	const float awp_shoulder_max = output_max_value - awp_crossover_point;
 
-	float awp_contrast = tonemap_a;
-	float awp_toe_a = tonemap_b;
-	float awp_slope = tonemap_c;
-	float awp_w = tonemap_d;
+	float awp_contrast = tonemapper_params.x;
+	float awp_toe_a = tonemapper_params.y;
+	float awp_slope = tonemapper_params.z;
+	float awp_w = tonemapper_params.w;
 
 	// Reinhard-like shoulder:
 	vec3 s = x - awp_crossover_point;

@@ -75,10 +75,7 @@ layout(push_constant, std430) uniform Params {
 
 	vec2 pixel_size;
 	uint tonemapper;
-	float tonemap_a;
-	float tonemap_b;
-	float tonemap_c;
-	float tonemap_d;
+	vec4 tonemapper_params;
 	uint pad;
 
 	uvec2 glow_texture_size;
@@ -204,7 +201,7 @@ vec4 texture2D_bicubic(sampler2D tex, vec2 uv, int p_lod) {
 
 // Based on Reinhard's extended formula, see equation 4 in https://doi.org/cjbgrt
 vec3 tonemap_reinhard(vec3 color) {
-	float white_squared = params.tonemap_a;
+	float white_squared = params.tonemapper_params.x;
 	vec3 white_squared_color = white_squared * color;
 	// Equivalent to color * (1 + color / white_squared) / (1 + color)
 	return (white_squared_color + color * color) / (white_squared_color + white_squared);
@@ -225,7 +222,7 @@ vec3 tonemap_filmic(vec3 color) {
 
 	vec3 color_tonemapped = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
 
-	return color_tonemapped / params.tonemap_a;
+	return color_tonemapped / params.tonemapper_params.x;
 }
 
 // Adapted from https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
@@ -254,7 +251,7 @@ vec3 tonemap_aces(vec3 color) {
 	vec3 color_tonemapped = (color * (color + A) - B) / (color * (C * color + D) + E);
 	color_tonemapped *= odt_to_rgb;
 
-	return color_tonemapped / params.tonemap_a;
+	return color_tonemapped / params.tonemapper_params.x;
 }
 
 // allenwp tonemapping curve; developed for use in the Godot game engine.
@@ -270,10 +267,10 @@ vec3 allenwp_curve(vec3 x) {
 	// awp_shoulder_max can be calculated on the CPU and passed in as params.tonemap_e.
 	const float awp_shoulder_max = output_max_value - awp_crossover_point;
 
-	float awp_contrast = params.tonemap_a;
-	float awp_toe_a = params.tonemap_b;
-	float awp_slope = params.tonemap_c;
-	float awp_w = params.tonemap_d;
+	float awp_contrast = params.tonemapper_params.x;
+	float awp_toe_a = params.tonemapper_params.y;
+	float awp_slope = params.tonemapper_params.z;
+	float awp_w = params.tonemapper_params.w;
 
 	// Reinhard-like shoulder:
 	vec3 s = x - awp_crossover_point;
