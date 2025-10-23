@@ -3085,7 +3085,7 @@ void Node3DEditorViewport::_project_settings_changed() {
 
 	// Check if HDR is supported and enabled and force 2D HDR if so.
 	bool hdr_output_needs_hdr_2d = false;
-	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
+	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR_OUTPUT) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
 		hdr_output_needs_hdr_2d = GLOBAL_GET("display/window/hdr/request_hdr_output");
 	}
 

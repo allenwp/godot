@@ -716,7 +716,7 @@ void Window::_make_window() {
 	DisplayServer::get_singleton()->window_attach_instance_id(get_instance_id(), window_id);
 
 	// Set HDR output settings.
-	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
+	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR_OUTPUT) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
 		DisplayServer::get_singleton()->window_request_hdr_output(hdr_output_requested, window_id);
 	}
 

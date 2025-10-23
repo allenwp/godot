@@ -464,7 +464,7 @@ void EditorNode::_update_from_settings() {
 
 	// Enable HDR if requested and available.
 	bool hdr_output_needs_hdr_2d = false;
-	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
+	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_HDR_OUTPUT) && RD::get_singleton() && RD::get_singleton()->has_feature(RD::Features::SUPPORTS_HDR_OUTPUT)) {
 		bool hdr_requested = GLOBAL_GET("display/window/hdr/request_hdr_output");
 		DisplayServer::get_singleton()->window_request_hdr_output(hdr_requested);
 		hdr_output_needs_hdr_2d = hdr_requested;

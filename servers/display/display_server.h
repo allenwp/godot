@@ -168,7 +168,7 @@ public:
 		FEATURE_NATIVE_COLOR_PICKER,
 		FEATURE_SELF_FITTING_WINDOWS,
 		FEATURE_ACCESSIBILITY_SCREEN_READER,
-		FEATURE_HDR,
+		FEATURE_HDR_OUTPUT,
 	};
 
 	virtual bool has_feature(Feature p_feature) const = 0;
