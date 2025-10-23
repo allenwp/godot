@@ -2138,7 +2138,7 @@
 				Returns the current maximum luminance in nits (cd/m²) for HDR content for the window specified by [param window_id].
 				If max luminance is being auto adjusted based on the display's capabilities, this will return that value.
 				Otherwise, it will return the value set by [method window_set_hdr_output_max_luminance].
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_get_hdr_output_current_reference_luminance" qualifiers="const">
@@ -2148,7 +2148,7 @@
 				Returns the current reference luminance in nits (cd/m²) for HDR content for the window specified by [param window_id].
 				If reference luminance is being auto adjusted based on the display's capabilities, this will return that value.
 				Otherwise, it will return the value set by [method window_set_hdr_output_reference_luminance].
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_get_hdr_output_max_luminance" qualifiers="const">
@@ -2157,7 +2157,7 @@
 			<description>
 				Returns the maximum luminance in nits (cd/m²) set for HDR content for the window specified by [param window_id].
 				Negative values indicate that the value is being auto adjusted based on the display's capabilities.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_get_hdr_output_reference_luminance" qualifiers="const">
@@ -2166,7 +2166,7 @@
 			<description>
 				Returns the SDR reference luminance in nits (cd/m²) set for HDR content for the window specified by [param window_id].
 				Negative values indicate that the value is being auto adjusted based on the display's capabilities.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_get_max_size" qualifiers="const">
@@ -2277,7 +2277,7 @@
 			<description>
 				Returns whether HDR output is currently enabled for the window specified by [param window_id].
 				This value may change dynamically based on system settings, display capabilities, and which display the window is currently on.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_is_hdr_output_requested" qualifiers="const">
@@ -2285,7 +2285,7 @@
 			<param index="0" name="window_id" type="int" default="0" />
 			<description>
 				Returns whether HDR output is requested for the window specified by [param window_id].
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_is_hdr_output_supported" qualifiers="const">
@@ -2294,7 +2294,7 @@
 			<description>
 				Returns whether the window specified by [param window_id] supports HDR output.
 				This depends on the platform, display capabilities, system settings, and the display the window is currently on.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 			</description>
 		</method>
 		<method name="window_is_maximize_allowed" qualifiers="const">
@@ -2340,7 +2340,7 @@
 				Sets whether HDR output should be requested for the window specified by [param window_id], falling back to SDR if not supported, and automatically switching between HDR and SDR as the window moves between displays, display capabilities change, or system settings are modified.
 				Only available on platforms that support HDR output, have HDR enabled in the system settings, and have a compatible display connected.
 				[b]Note:[/b] Some integrated GPUs have poor support for HDR output, even when they claim to support it. If you experience issues, try disabling this setting.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 				[b]Note:[/b] Requires support by the rendering device.
 			</description>
 		</method>
@@ -2400,7 +2400,7 @@
 				Set to a negative value to automatically use the display's maximum capability.
 				By default, this is set to [code]-1[/code].
 				This controls the maximum brightness of bright elements in HDR content, typically by scaling down highlights within the scene.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 				[b]Note:[/b] Requires support by the rendering device.
 				[b]Note:[/b] On some platforms, setting a custom max luminance is not supported and will always be auto adjusted based on the display's capabilities.
 			</description>
@@ -2414,7 +2414,7 @@
 				Set to a negative value to automatically adjust to the reference level set by the OS or window manager.
 				By default, this is set to [code]-1[/code].
 				This controls the brightness of SDR content (such as UI) when HDR is enabled.
-				[b]Note:[/b] Requires support for [constant FEATURE_HDR].
+				[b]Note:[/b] Requires support for [constant FEATURE_HDR_OUTPUT].
 				[b]Note:[/b] Requires support by the rendering device.
 				[b]Note:[/b] On some platforms, setting a custom reference luminance is not supported and will always be auto adjusted based on the display's capabilities.
 			</description>
@@ -2731,7 +2731,7 @@
 		<constant name="FEATURE_ACCESSIBILITY_SCREEN_READER" value="34" enum="Feature">
 			Display server supports interaction with screen reader or Braille display. [b]Linux (X11/Wayland), macOS, Windows[/b]
 		</constant>
-		<constant name="FEATURE_HDR" value="35" enum="Feature">
+		<constant name="FEATURE_HDR_OUTPUT" value="35" enum="Feature">
 			Display server supports HDR output. [b]Windows[/b]
 		</constant>
 		<constant name="ROLE_UNKNOWN" value="0" enum="AccessibilityRole">
