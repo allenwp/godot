@@ -120,7 +120,6 @@ public:
 		double present_minimum_duration = 0.0;
 
 		bool hdr_output = false;
-		bool hdr_prefer_high_precision = false;
 		float hdr_reference_luminance = 0.0f;
 		float hdr_max_luminance = 0.0f;
 		float hdr_linear_luminance_scale = 100.0f;

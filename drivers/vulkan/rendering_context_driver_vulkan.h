@@ -164,7 +164,6 @@ public:
 		bool needs_resize = false;
 
 		bool hdr_output = false;
-		bool hdr_prefer_high_precision = false;
 		float hdr_reference_luminance = 0.0f;
 		float hdr_max_luminance = 0.0f;
 		float hdr_linear_luminance_scale = 100.0f;
