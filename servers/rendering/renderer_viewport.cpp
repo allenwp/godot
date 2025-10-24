@@ -362,7 +362,7 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport) {
 		if (RD::get_singleton() && parent_window != DisplayServer::INVALID_WINDOW_ID) {
 			RenderingContextDriver *context_driver = RD::get_singleton()->get_context_driver();
 			if (context_driver->window_get_hdr_output_enabled(parent_window)) {
-				p_viewport->window_output_max_value = context_driver->window_get_output_max_value(parent_window);
+				p_viewport->window_output_max_value = context_driver->window_get_output_max_linear_value(parent_window);
 			}
 		}
 	}

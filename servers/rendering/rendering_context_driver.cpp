@@ -139,7 +139,7 @@ float RenderingContextDriver::window_get_hdr_output_linear_luminance_scale(Displ
 	}
 }
 
-float RenderingContextDriver::window_get_output_max_value(DisplayServer::WindowID p_window) const {
+float RenderingContextDriver::window_get_output_max_linear_value(DisplayServer::WindowID p_window) const {
 	SurfaceID surface = surface_get_from_window(p_window);
 	if (surface) {
 		if (surface_get_hdr_output_enabled(surface)) {

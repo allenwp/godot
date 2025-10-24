@@ -341,7 +341,7 @@ public:
 	bool is_hdr_output_supported() const;
 	void set_hdr_output_requested(bool p_enabled);
 	bool is_hdr_output_requested() const;
-	float get_output_max_value() const;
+	float get_output_max_linear_value() const;
 
 	bool is_maximize_allowed() const;
 

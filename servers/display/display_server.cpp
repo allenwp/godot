@@ -1307,7 +1307,7 @@ float DisplayServer::window_get_hdr_output_current_max_luminance(WindowID p_wind
 	return 0.0f;
 }
 
-float DisplayServer::window_get_output_max_value(WindowID p_window) const {
+float DisplayServer::window_get_output_max_linear_value(WindowID p_window) const {
 	return 1.0f;
 }
 
@@ -1527,7 +1527,7 @@ void DisplayServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("window_get_hdr_output_max_luminance", "window_id"), &DisplayServer::window_get_hdr_output_max_luminance, DEFVAL(MAIN_WINDOW_ID));
 	ClassDB::bind_method(D_METHOD("window_get_hdr_output_current_max_luminance", "window_id"), &DisplayServer::window_get_hdr_output_current_max_luminance, DEFVAL(MAIN_WINDOW_ID));
 
-	ClassDB::bind_method(D_METHOD("window_get_output_max_value", "window_id"), &DisplayServer::window_get_output_max_value, DEFVAL(MAIN_WINDOW_ID));
+	ClassDB::bind_method(D_METHOD("window_get_output_max_linear_value", "window_id"), &DisplayServer::window_get_output_max_linear_value, DEFVAL(MAIN_WINDOW_ID));
 
 	ClassDB::bind_method(D_METHOD("window_is_maximize_allowed", "window_id"), &DisplayServer::window_is_maximize_allowed, DEFVAL(MAIN_WINDOW_ID));
 	ClassDB::bind_method(D_METHOD("window_maximize_on_title_dbl_click"), &DisplayServer::window_maximize_on_title_dbl_click);

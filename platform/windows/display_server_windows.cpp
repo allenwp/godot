@@ -4666,12 +4666,12 @@ float DisplayServerWindows::window_get_hdr_output_current_max_luminance(WindowID
 	return 0.0f;
 }
 
-float DisplayServerWindows::window_get_output_max_value(WindowID p_window) const {
+float DisplayServerWindows::window_get_output_max_linear_value(WindowID p_window) const {
 	_THREAD_SAFE_METHOD_
 
 #if defined(RD_ENABLED)
 	if (rendering_context) {
-		return rendering_context->window_get_output_max_value(p_window);
+		return rendering_context->window_get_output_max_linear_value(p_window);
 	}
 #endif
 

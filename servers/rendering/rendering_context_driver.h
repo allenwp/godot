@@ -55,7 +55,7 @@ public:
 	float window_get_hdr_output_max_luminance(DisplayServer::WindowID p_window) const;
 	void window_set_hdr_output_linear_luminance_scale(DisplayServer::WindowID p_window, float p_linear_luminance_scale);
 	float window_get_hdr_output_linear_luminance_scale(DisplayServer::WindowID p_window) const;
-	float window_get_output_max_value(DisplayServer::WindowID p_window) const;
+	float window_get_output_max_linear_value(DisplayServer::WindowID p_window) const;
 	void window_destroy(DisplayServer::WindowID p_window);
 
 public:

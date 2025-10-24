@@ -2199,11 +2199,11 @@
 				[b]Note:[/b] This method is implemented on Android, Linux (X11/Wayland), macOS, and Windows.
 			</description>
 		</method>
-		<method name="window_get_output_max_value" qualifiers="const">
+		<method name="window_get_output_max_linear_value" qualifiers="const">
 			<return type="float" />
 			<param index="0" name="window_id" type="int" default="0" />
 			<description>
-				Equivalent to [method Window.get_output_max_value].
+				Equivalent to [method Window.get_output_max_linear_value].
 			</description>
 		</method>
 		<method name="window_get_popup_safe_rect" qualifiers="const">

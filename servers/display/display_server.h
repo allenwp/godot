@@ -513,7 +513,7 @@ public:
 	virtual float window_get_hdr_output_max_luminance(WindowID p_window = MAIN_WINDOW_ID) const;
 	virtual float window_get_hdr_output_current_max_luminance(WindowID p_window = MAIN_WINDOW_ID) const;
 
-	virtual float window_get_output_max_value(WindowID p_window = MAIN_WINDOW_ID) const;
+	virtual float window_get_output_max_linear_value(WindowID p_window = MAIN_WINDOW_ID) const;
 
 	virtual bool window_is_maximize_allowed(WindowID p_window = MAIN_WINDOW_ID) const = 0;
 
