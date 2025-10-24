@@ -251,7 +251,17 @@ void RendererCompositorRD::set_boot_image_with_stretch(const Ref<Image> &p_image
 	const float linear_luminance_scale = RD::get_singleton()->get_context_driver()->window_get_hdr_output_linear_luminance_scale(DisplayServer::MAIN_WINDOW_ID);
 	const float reference_multiplier = _compute_reference_multiplier(color_space, reference_luminance, linear_luminance_scale);
 
-	RD::DrawListID draw_list = RD::get_singleton()->draw_list_begin_for_screen(DisplayServer::MAIN_WINDOW_ID, p_color);
+	Color clear_color = p_color;
+	if (color_space != RD::COLOR_SPACE_REC709_NONLINEAR_SRGB) {
+		// draw_list_begin_for_screen requires linear-encoded Color when using an HDR buffer.
+		clear_color = p_color.srgb_to_linear();
+
+		clear_color.r *= reference_multiplier;
+		clear_color.g *= reference_multiplier;
+		clear_color.b *= reference_multiplier;
+	}
+
+	RD::DrawListID draw_list = RD::get_singleton()->draw_list_begin_for_screen(DisplayServer::MAIN_WINDOW_ID, clear_color);
 
 	RD::get_singleton()->draw_list_bind_render_pipeline(draw_list, blit_pipelines.pipelines[BLIT_MODE_NORMAL_ALPHA]);
 	RD::get_singleton()->draw_list_bind_index_array(draw_list, blit.array);
