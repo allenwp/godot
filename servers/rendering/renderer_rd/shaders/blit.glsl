@@ -23,7 +23,8 @@ layout(push_constant, std430) uniform Pos {
 	uint target_color_space;
 
 	float reference_multiplier;
-	uint pad[3];
+	float output_max_value;
+	uint pad[2];
 }
 data;
 
@@ -67,7 +68,8 @@ layout(push_constant, std430) uniform Pos {
 	uint target_color_space;
 
 	float reference_multiplier;
-	uint pad[3];
+	float output_max_value;
+	uint pad[2];
 }
 data;
 
@@ -171,19 +173,26 @@ void main() {
 
 	// Colorspace conversion for final blit
 	if (data.target_color_space == COLOR_SPACE_REC709_LINEAR) {
-		// Negative values may be interpreted as scRGB colors,
-		// so clip them to the intended sRGB colors.
-		color.rgb = max(vec3(0.0), color.rgb);
 		if (data.source_is_srgb == true) {
 			// sRGB -> linear conversion
 			color.rgb = srgb_to_linear(color.rgb);
 		}
 
+		// Negative values may be interpreted as scRGB colors,
+		// so clip them to the intended sRGB colors.
+		// Additionally, it is important that the user can trust that
+		// Window.output_max_linear_value is truly the max output value, even if
+		// the max luminance has been misconfigured. This ensures that the
+		// resulting image will always be as the user expects when they use
+		// Window.output_max_linear_value and tonemapping functions will behave
+		// as expected.
+		color.rgb = clamp(color.rgb, vec3(0.0), vec3(data.output_max_value));
+
 		// Adjust brightness of SDR content to reference luminance
 		color.rgb *= data.reference_multiplier;
 	} else if (data.target_color_space == COLOR_SPACE_REC709_NONLINEAR_SRGB) {
-		// Negative values will be clipped by the target, so no need to
-		// clip them here.
+		// Negative values and values above 1.0 will be clipped by the target,
+		// so no need to clip them here.
 		if (data.source_is_srgb == false) {
 			// linear -> sRGB conversion
 			color.rgb = linear_to_srgb(color.rgb);

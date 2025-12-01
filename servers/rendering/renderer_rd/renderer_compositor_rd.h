@@ -86,7 +86,8 @@ protected:
 		uint32_t target_color_space; // 4 - 80
 
 		float reference_multiplier; // 4 - 84
-		uint32_t pad[3]; // 12 - 96 (padding to reach 16-byte boundary)
+		float output_max_value; // 4 - 88
+		uint32_t pad[2]; // 8 - 96 (padding to reach 16-byte boundary)
 	};
 
 	struct BlitPipelines {

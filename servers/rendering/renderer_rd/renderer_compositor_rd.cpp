@@ -50,6 +50,7 @@ void RendererCompositorRD::blit_render_targets_to_screen(DisplayServer::WindowID
 
 	const RD::ColorSpace color_space = RD::get_singleton()->screen_get_color_space(p_screen);
 	const float reference_luminance = RD::get_singleton()->get_context_driver()->window_get_hdr_output_reference_luminance(p_screen);
+	const float output_max_value = RD::get_singleton()->get_context_driver()->window_get_output_max_value(p_screen);
 	const float reference_multiplier = _compute_reference_multiplier(color_space, reference_luminance);
 
 	for (int i = 0; i < p_amount; i++) {
@@ -106,6 +107,7 @@ void RendererCompositorRD::blit_render_targets_to_screen(DisplayServer::WindowID
 		blit.push_constant.use_debanding = texture_storage->render_target_is_using_debanding(p_render_targets[i].render_target);
 		blit.push_constant.target_color_space = color_space;
 		blit.push_constant.reference_multiplier = reference_multiplier;
+		blit.push_constant.output_max_value = output_max_value;
 
 		RD::get_singleton()->draw_list_set_push_constant(draw_list, &blit.push_constant, sizeof(BlitPushConstant));
 		RD::get_singleton()->draw_list_draw(draw_list, true);
@@ -263,6 +265,7 @@ void RendererCompositorRD::set_boot_image(const Ref<Image> &p_image, const Color
 
 	const RD::ColorSpace color_space = RD::get_singleton()->screen_get_color_space(DisplayServer::MAIN_WINDOW_ID);
 	const float reference_luminance = RD::get_singleton()->get_context_driver()->window_get_hdr_output_reference_luminance(DisplayServer::MAIN_WINDOW_ID);
+	const float output_max_value = RD::get_singleton()->get_context_driver()->window_get_output_max_value(DisplayServer::MAIN_WINDOW_ID);
 	const float reference_multiplier = _compute_reference_multiplier(color_space, reference_luminance);
 
 	RD::DrawListID draw_list = RD::get_singleton()->draw_list_begin_for_screen(DisplayServer::MAIN_WINDOW_ID, p_color);
@@ -294,6 +297,7 @@ void RendererCompositorRD::set_boot_image(const Ref<Image> &p_image, const Color
 	blit.push_constant.use_debanding = false;
 	blit.push_constant.target_color_space = color_space;
 	blit.push_constant.reference_multiplier = reference_multiplier;
+	blit.push_constant.output_max_value = output_max_value;
 
 	RD::get_singleton()->draw_list_set_push_constant(draw_list, &blit.push_constant, sizeof(BlitPushConstant));
 	RD::get_singleton()->draw_list_draw(draw_list, true);
