@@ -374,12 +374,6 @@
 				Returns [code]true[/code] if the window is currently embedded in another window.
 			</description>
 		</method>
-		<method name="is_hdr_output_supported" qualifiers="const">
-			<return type="bool" />
-			<description>
-				Returns [code]true[/code] if the window supports HDR output. This depends on the platform, screen capabilities, system settings, and the screen the window is currently on.
-			</description>
-		</method>
 		<method name="is_layout_rtl" qualifiers="const">
 			<return type="bool" />
 			<description>

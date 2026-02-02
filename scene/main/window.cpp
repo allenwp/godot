@@ -574,16 +574,6 @@ bool Window::is_popup() const {
 	return get_flag(Window::FLAG_POPUP) || get_flag(Window::FLAG_NO_FOCUS);
 }
 
-bool Window::is_hdr_output_supported() const {
-	ERR_READ_THREAD_GUARD_V(false);
-
-	if (window_id != DisplayServer::INVALID_WINDOW_ID) {
-		return DisplayServer::get_singleton()->window_is_hdr_output_supported(window_id);
-	}
-
-	return false;
-}
-
 void Window::set_hdr_output_requested(bool p_requested) {
 	ERR_MAIN_THREAD_GUARD;
 
@@ -3299,7 +3289,6 @@ void Window::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_flag", "flag", "enabled"), &Window::set_flag);
 	ClassDB::bind_method(D_METHOD("get_flag", "flag"), &Window::get_flag);
 
-	ClassDB::bind_method(D_METHOD("is_hdr_output_supported"), &Window::is_hdr_output_supported);
 	ClassDB::bind_method(D_METHOD("set_hdr_output_requested", "requested"), &Window::set_hdr_output_requested);
 	ClassDB::bind_method(D_METHOD("is_hdr_output_requested"), &Window::is_hdr_output_requested);
 	ClassDB::bind_method(D_METHOD("get_output_max_linear_value"), &Window::get_output_max_linear_value);

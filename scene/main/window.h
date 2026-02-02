@@ -339,7 +339,6 @@ public:
 
 	bool is_popup() const;
 
-	bool is_hdr_output_supported() const;
 	void set_hdr_output_requested(bool p_enabled);
 	bool is_hdr_output_requested() const;
 	float get_output_max_linear_value() const;
