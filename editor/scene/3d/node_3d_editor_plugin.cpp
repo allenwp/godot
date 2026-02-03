@@ -9619,9 +9619,30 @@ void Node3DEditor::_preview_settings_changed() {
 		float sky_luminance = sky_color_linear.get_luminance();
 		float ground_luminance = ground_color_linear.get_luminance();
 		float horizon_luminance = sky_luminance > ground_luminance ? sky_luminance : ground_luminance;
-		horizon_luminance *= horizon_brightness;
 		horizon_color *= horizon_luminance / horizon_color.get_luminance();
+		horizon_luminance *= horizon_brightness; // TODO: add to the one that has higher luminance instead of mixing and desaturating?
 		horizon_color = horizon_color.lerp(Color(horizon_luminance, horizon_luminance, horizon_luminance), horizon_saturation);
+		Color min_color_values = Color(sky_color_linear.r > ground_color_linear.r ? sky_color_linear.r : ground_color_linear.r,
+				sky_color_linear.g > ground_color_linear.g ? sky_color_linear.g : ground_color_linear.g,
+				sky_color_linear.b > ground_color_linear.b ? sky_color_linear.b : ground_color_linear.b);
+		float scale = 1.0;
+		if (min_color_values.r > horizon_color.r) {
+			scale = min_color_values.r / horizon_color.r;
+		}
+		if (min_color_values.g > horizon_color.g) {
+			float scale_g = min_color_values.g / horizon_color.g;
+			if (scale_g > scale) {
+				scale = scale_g;
+			}
+		}
+		if (min_color_values.b > horizon_color.b) {
+			float scale_b = min_color_values.b / horizon_color.b;
+			if (scale_b > scale) {
+				scale = scale_b;
+			}
+		}
+		horizon_color *= scale;
+		horizon_color.a = (sky_color_linear.a + ground_color_linear.a) / 2.0;
 		horizon_color = horizon_color.linear_to_srgb();
 
 		sky_material->set_sky_top_color(environ_sky_color->get_pick_color());
@@ -9650,7 +9671,7 @@ void Node3DEditor::_load_default_preview_settings() {
 	sun_angle_altitude->set_value_no_signal(-Math::rad_to_deg(sun_rotation.x));
 	sun_angle_azimuth->set_value_no_signal(180.0 - Math::rad_to_deg(sun_rotation.y));
 	sun_direction->queue_redraw();
-	environ_sky_color->set_pick_color(Color(0.408, 0.584, 0.796));
+	environ_sky_color->set_pick_color(Color(0.175, 0.344, 0.607)); // or maybe Color(0.292, 0.495, 0.811)
 	environ_ground_color->set_pick_color(Color(0.243, 0.2, 0.157));
 	environ_energy->set_value_no_signal(1.0);
 	if (OS::get_singleton()->get_current_rendering_method() != "gl_compatibility" && OS::get_singleton()->get_current_rendering_method() != "dummy") {
