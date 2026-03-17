@@ -952,4 +952,6 @@ void main() {
 	}
 
 	frag_color = color;
+
+	frag_color.rgb = clamp(frag_color.rgb, vec3(0.0), vec3(params.output_max_value));
 }
