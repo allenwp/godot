@@ -265,7 +265,7 @@ Vector<String> DisplayServerMacOSEmbedded::get_rendering_drivers_func() {
 }
 
 void DisplayServerMacOSEmbedded::register_embedded_driver() {
-	register_create_function("embedded", create_func, get_rendering_drivers_func);
+	register_create_function("TODO I don't know", create_func, get_rendering_drivers_func);
 }
 
 // MARK: - Mouse
