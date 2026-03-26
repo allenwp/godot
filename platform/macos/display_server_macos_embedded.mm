@@ -424,7 +424,9 @@ bool DisplayServerMacOSEmbedded::has_feature(DisplayServerEnums::Feature p_featu
 }
 
 String DisplayServerMacOSEmbedded::get_name() const {
-	return "embedded";
+	// Match the name of DisplayServerMacOS because the behavior of
+	// this display server should match DisplayServerMacOS.
+	return "macOS";
 }
 
 int DisplayServerMacOSEmbedded::get_screen_count() const {
