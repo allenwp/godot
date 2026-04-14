@@ -2328,7 +2328,7 @@
 				Returns [code]true[/code] if HDR output is requested for the window specified by [param window_id]. Corresponds to [member Window.hdr_output_requested].
 			</description>
 		</method>
-		<method name="window_is_hdr_output_supported" qualifiers="const">
+		<method name="window_is_hdr_output_supported">
 			<return type="bool" />
 			<param index="0" name="window_id" type="int" default="0" />
 			<description>

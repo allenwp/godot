@@ -1526,7 +1526,7 @@ void DisplayServerWayland::_window_update_hdr_state(WindowData &p_window) {
 #endif
 }
 
-bool DisplayServerWayland::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window_id) const {
+bool DisplayServerWayland::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window_id) {
 	ERR_FAIL_COND_V(!windows.has(p_window_id), false);
 	const WindowData &wd = windows[p_window_id];
 

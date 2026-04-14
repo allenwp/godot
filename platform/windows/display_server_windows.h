@@ -554,16 +554,14 @@ class DisplayServerWindows : public DisplayServer {
 
 	struct ScreenHdrData {
 		bool hdr_supported = false;
-		float min_luminance = 0.0f;
 		float max_luminance = 0.0f;
-		float max_average_luminance = 0.0f;
 		float sdr_white_level = 0.0f;
 	};
 	AHashMap<int, ScreenHdrData> hdr_output_cache;
 
-	ScreenHdrData _get_screen_hdr_data(int p_screen, bool p_include_sdr_white_level) const;
+	ScreenHdrData _get_screen_hdr_data(DisplayServerEnums::WindowID p_window, bool p_include_sdr_white_level);
 	void _update_hdr_output_for_window(DisplayServerEnums::WindowID p_window, const WindowData &p_window_data, ScreenHdrData p_screen_data);
-	void _update_hdr_output_for_tracked_windows(bool p_include_sdr_white_level);
+	void _legacy_update_hdr_output_for_tracked_windows(bool p_include_sdr_white_level);
 
 public:
 	LRESULT WndProcFileDialog(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -714,7 +712,7 @@ public:
 	virtual void window_set_vsync_mode(DisplayServerEnums::VSyncMode p_vsync_mode, DisplayServerEnums::WindowID p_window = DisplayServerEnums::MAIN_WINDOW_ID) override;
 	virtual DisplayServerEnums::VSyncMode window_get_vsync_mode(DisplayServerEnums::WindowID p_vsync_mode) const override;
 
-	virtual bool window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window = DisplayServerEnums::MAIN_WINDOW_ID) const override;
+	virtual bool window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window = DisplayServerEnums::MAIN_WINDOW_ID) override;
 
 	virtual void window_request_hdr_output(const bool p_enable, DisplayServerEnums::WindowID p_window = DisplayServerEnums::MAIN_WINDOW_ID) override;
 	virtual bool window_is_hdr_output_requested(DisplayServerEnums::WindowID p_window = DisplayServerEnums::MAIN_WINDOW_ID) const override;

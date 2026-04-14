@@ -852,7 +852,7 @@ void DisplayServerAppleEmbedded::current_edr_headroom_changed() {
 	_update_hdr_output(true);
 }
 
-bool DisplayServerAppleEmbedded::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) const {
+bool DisplayServerAppleEmbedded::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) {
 #if defined(RD_ENABLED)
 	if (rendering_device && !rendering_device->has_feature(RenderingDevice::Features::SUPPORTS_HDR_OUTPUT)) {
 		return false;

@@ -1298,7 +1298,7 @@ DisplayServerEnums::VSyncMode DisplayServer::window_get_vsync_mode(DisplayServer
 	return DisplayServerEnums::VSyncMode::VSYNC_ENABLED;
 }
 
-bool DisplayServer::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) const {
+bool DisplayServer::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) {
 	return false;
 }
 

@@ -586,7 +586,7 @@ void DisplayServerMacOSBase::_update_hdr_output(DisplayServerEnums::WindowID p_w
 #endif
 }
 
-bool DisplayServerMacOSBase::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) const {
+bool DisplayServerMacOSBase::window_is_hdr_output_supported(DisplayServerEnums::WindowID p_window) {
 	_THREAD_SAFE_METHOD_
 
 #if defined(RD_ENABLED)
