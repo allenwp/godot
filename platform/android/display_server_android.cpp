@@ -473,19 +473,20 @@ void DisplayServerAndroid::_update_hdr_output(const AndroidHdrCapabilities &p_hd
 		// Recompute max limit based on current HDR ratio.
 		float max_reference = sdr_reference * MAX(p_hdr_capabilities.hdr_sdr_ratio, desired_hdr_ratio);
 
-		if (current_hdr_enabled != desired_hdr_enabled) {
-			rendering_context_global->window_set_hdr_output_enabled(p_window, desired_hdr_enabled);
-			rendering_context_global->window_set_hdr_output_linear_luminance_scale(p_window, sdr_reference);
+		// [allenwp] I think we need to always call enable_extended_range_brightness, including every time we get a onHdrSdrRatioChanged notification.
+		//if (current_hdr_enabled != desired_hdr_enabled) {
+		rendering_context_global->window_set_hdr_output_enabled(p_window, desired_hdr_enabled);
+		rendering_context_global->window_set_hdr_output_linear_luminance_scale(p_window, sdr_reference);
 
-			GodotJavaWrapper *godot_java = OS_Android::get_singleton()->get_godot_java();
-			if (godot_java) {
-				if (desired_hdr_enabled) {
-					godot_java->enable_extended_range_brightness(p_hdr_capabilities.hdr_sdr_ratio, desired_hdr_ratio);
-				} else {
-					godot_java->disable_extended_range_brightness();
-				}
+		GodotJavaWrapper *godot_java = OS_Android::get_singleton()->get_godot_java();
+		if (godot_java) {
+			if (desired_hdr_enabled) {
+				godot_java->enable_extended_range_brightness(p_hdr_capabilities.hdr_sdr_ratio, desired_hdr_ratio);
+			} else {
+				godot_java->disable_extended_range_brightness();
 			}
 		}
+		//}
 
 		if (sdr_reference > 0.0f) {
 			rendering_context_global->window_set_hdr_output_reference_luminance(p_window, sdr_reference);

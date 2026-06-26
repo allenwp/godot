@@ -193,7 +193,7 @@ void main() {
 		// so no need to clip them here.
 
 		// Android HDR scaling
-		color.rgb *= data.reference_multiplier;
+		color.rgb /= data.output_max_value; //<- This isn't working, but it should work based on my interpretation of https://github.com/godotengine/godot/pull/101977#discussion_r2824010313
 
 		// linear -> sRGB conversion
 		color.rgb = linear_to_srgb(color.rgb);
