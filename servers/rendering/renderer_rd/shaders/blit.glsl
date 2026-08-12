@@ -166,7 +166,7 @@ void main() {
 		// the resulting image will always be as the game developer expects when they
 		// use Window.output_max_linear_value and tonemapping functions will behave
 		// as expected.
-		color.rgb = clamp(color.rgb, vec3(0.0), vec3(data.output_max_value));
+		//color.rgb = clamp(color.rgb, vec3(0.0), vec3(data.output_max_value));
 
 		// Adjust brightness of SDR content to reference luminance.
 		color.rgb *= data.reference_multiplier;
