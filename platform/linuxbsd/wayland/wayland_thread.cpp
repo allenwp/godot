@@ -5274,16 +5274,6 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 		return;
 	}
 
-	if (p_profile.named_transfer_function == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22) {
-		// This is largely a problem with some HDR monitors applying "glare compensation" or not.
-		// For monitors which do not apply glare compensation, it is correct to report gamma22 like we would on SDR.
-		// But there also exist monitors which apply glare compensation, on these monitors it is correct to request compound_2_4.
-		// Since we have no way to know on which type of monitor we are in, we unset the image description in the hopes
-		// that future compositor features may include choosing a default transfer function.
-		wp_color_management_surface_v1_unset_image_description(ws.wp_color_management_surface);
-		return;
-	}
-
 	ColorManagementState *cms = wp_color_manager_get_state(registry.wp_color_manager);
 
 	struct wp_image_description_creator_params_v1 *builder = wp_color_manager_v1_create_parametric_creator(registry.wp_color_manager);
@@ -5292,7 +5282,11 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 
 	if ((cms->supported_render_feature & WP_COLOR_MANAGER_V1_FEATURE_SET_LUMINANCES) > 0) {
 		uint32_t min_luminance = static_cast<uint32_t>(p_profile.target_min_luminance * 10000);
-		wp_image_description_creator_params_v1_set_luminances(builder, min_luminance, p_profile.target_max_luminance, p_profile.reference_luminance);
+		if (p_profile.named_transfer_function == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22) {
+			wp_image_description_creator_params_v1_set_luminances(builder, min_luminance, 80, 80);
+		} else {
+			wp_image_description_creator_params_v1_set_luminances(builder, min_luminance, p_profile.target_max_luminance, p_profile.reference_luminance);
+		}
 	}
 
 	struct wp_image_description_v1 *image_desc = wp_image_description_creator_params_v1_create(builder);

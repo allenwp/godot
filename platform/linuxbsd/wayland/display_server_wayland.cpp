@@ -1541,6 +1541,8 @@ void DisplayServerWayland::_window_update_hdr_state(WindowData &p_window) {
 		} else {
 			p_window.color_profile.named_primary = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB;
 			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22;
+			p_window.color_profile.target_max_luminance = 80;
+			p_window.color_profile.reference_luminance = 80;
 		}
 
 		if (p_window.visible) {
