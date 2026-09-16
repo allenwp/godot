@@ -1540,10 +1540,12 @@ void DisplayServerWayland::_window_update_hdr_state(WindowData &p_window) {
 			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR;
 		} else {
 			p_window.color_profile.named_primary = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB;
-			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22;
+			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4;
 			p_window.color_profile.target_max_luminance = 80;
 			p_window.color_profile.reference_luminance = 80;
 		}
+
+		p_window.color_profile.target_min_luminance = 0;
 
 		if (p_window.visible) {
 			MutexLock mutex_lock(wayland_thread.mutex);
@@ -2113,6 +2115,7 @@ void DisplayServerWayland::process_events() {
 		if (color_profile_msg.is_valid()) {
 			WindowData &wd = windows[color_profile_msg->id];
 			wd.color_profile = color_profile_msg->color_profile;
+			wd.color_profile.target_min_luminance = 0;
 
 			_window_update_hdr_state(wd);
 			_send_window_event(DisplayServerEnums::WINDOW_EVENT_OUTPUT_MAX_LINEAR_VALUE_CHANGED, wd.id);

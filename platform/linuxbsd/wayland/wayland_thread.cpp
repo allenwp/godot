@@ -3033,7 +3033,7 @@ void WaylandThread::_wp_image_description_info_on_target_luminance(void *data, s
 	ERR_FAIL_NULL(msg);
 
 	// The uint32 is multiplied by 10000 for precision.
-	msg->color_profile.target_min_luminance = static_cast<float>(min_lum) / 10000;
+	msg->color_profile.target_min_luminance = 0;
 	msg->color_profile.target_max_luminance = max_lum;
 }
 
@@ -5281,8 +5281,8 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 	wp_image_description_creator_params_v1_set_tf_named(builder, p_profile.named_transfer_function);
 
 	if ((cms->supported_render_feature & WP_COLOR_MANAGER_V1_FEATURE_SET_LUMINANCES) > 0) {
-		uint32_t min_luminance = static_cast<uint32_t>(p_profile.target_min_luminance * 10000);
-		if (p_profile.named_transfer_function == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22) {
+		uint32_t min_luminance = 0;
+		if (p_profile.named_transfer_function == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4) {
 			wp_image_description_creator_params_v1_set_luminances(builder, min_luminance, 80, 80);
 		} else {
 			wp_image_description_creator_params_v1_set_luminances(builder, min_luminance, p_profile.target_max_luminance, p_profile.reference_luminance);
@@ -5290,7 +5290,7 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 	}
 
 	struct wp_image_description_v1 *image_desc = wp_image_description_creator_params_v1_create(builder);
-	wp_color_management_surface_v1_set_image_description(ws.wp_color_management_surface, image_desc, WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
+	wp_color_management_surface_v1_set_image_description(ws.wp_color_management_surface, image_desc, WP_COLOR_MANAGER_V1_RENDER_INTENT_ABSOLUTE);
 	wp_image_description_v1_destroy(image_desc);
 }
 

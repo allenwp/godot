@@ -104,7 +104,7 @@ class WaylandThread {
 public:
 	struct ColorProfile {
 		uint32_t named_primary = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB;
-		uint32_t named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22;
+		uint32_t named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4;
 
 		// The luminances the compositor recommends.
 		float target_min_luminance = 0;
