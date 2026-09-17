@@ -1523,7 +1523,7 @@ void DisplayServerWayland::_window_update_hdr_state(WindowData &p_window) {
 		// The `display/window/hdr/request_hdr_output` project setting makes the main window "request" HDR.
 		// On Windows, this means enable HDR for the main window if it is on an HDR screen.
 		// Since all screens support HDR on Wayland, we use whether the window "prefers" HDR or not instead.
-		bool hdr_preferred = p_window.color_profile.target_max_luminance > p_window.color_profile.reference_luminance;
+		bool hdr_preferred = true;//p_window.color_profile.target_max_luminance > p_window.color_profile.reference_luminance;
 		bool hdr_desired = wayland_thread.supports_hdr() && hdr_preferred && p_window.hdr_requested;
 
 		if (rendering_context->window_get_hdr_output_enabled(window_id) != hdr_desired) {
@@ -1571,7 +1571,7 @@ bool DisplayServerWayland::window_is_hdr_output_supported(DisplayServerEnums::Wi
 
 	const WindowData &wd = windows[p_window_id];
 
-	return wd.color_profile.target_max_luminance > wd.color_profile.reference_luminance;
+	return true;//wd.color_profile.target_max_luminance > wd.color_profile.reference_luminance;
 }
 
 void DisplayServerWayland::window_request_hdr_output(const bool p_enabled, DisplayServerEnums::WindowID p_window_id) {
