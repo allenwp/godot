@@ -30,7 +30,7 @@ Comment:
  The exact copyright for each file in that library *may* differ, and some
  files or code snippets might be distributed under other compatible licenses
  (e.g. a public domain dedication), but as far as Godot Engine is concerned
- the library is considered as a whole under the Zlib license.
+ the library is considered as a whole under the Zlib license.sdf
  .
  Note: When linking dynamically against thirdparty libraries instead of
  building them into the Godot binary, you may remove the corresponding
