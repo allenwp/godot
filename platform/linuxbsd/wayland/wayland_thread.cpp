@@ -5347,11 +5347,26 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 	}
 
 	if (p_profile.named_transfer_function == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22) {
-		// This is largely a problem with some HDR monitors applying "glare compensation" or not.
-		// For monitors which do not apply glare compensation, it is correct to report gamma22 like we would on SDR.
-		// But there also exist monitors which apply glare compensation, on these monitors it is correct to request compound_2_4.
-		// Since we have no way to know on which type of monitor we are in, we unset the image description in the hopes
-		// that future compositor features may include choosing a default transfer function.
+		// Wayland color management needs an image description that describes the real-world screen
+		// characteristics used for authoring the software.
+		// Because Godot games are often created by multiple people with different screens, it is not
+		// possible or desirable for a Godot user to describe a single real-world screen.
+		// It is very difficult for Godot users to accurately measure their minimum and maximum luminance.
+		// The practical luminance curve of the Godot user's SDR screen often does not exactly match a gamma22
+		// or compound_power_2_4 transfer function.
+		// If we use the 400:1 contrast ratio sRGB reference display characteristics (gamma22 transfer
+		// function with a 0.2 nits minimum luminance), this likely does not well describe the Godot user's
+		// screen. More importantly, this triggers the Wayland compositor to use a pure 2.2 power function
+		// to attain linear values without considering the 0.2 nits minimum luminance, resulting in an image
+		// that appears overly dark and saturated on HDR computer screens that apply their own internal
+		// color management that includes compensation for glare and unwanted backlight contribution.
+		// To avoid this issue with HDR computer screens we could instead depend
+		// on the colour management internal to SDR computer screens, just like Godot does on
+		// other platforms. This would mean targeting a theoretical screen with a zero minimum luminance and a
+		// compound_power_2_4 transfer function, but this results in the image being decoded with the
+		// piecewise sRGB function and re-encoded with a pure 2.2 power function when presented on a gamma22
+		// SDR screen instead of being passed on, unmodified, to the screen.
+		// Because it is not possible to provide a good image description in SDR sRGB mode, unset the description:
 		wp_color_management_surface_v1_unset_image_description(ws.wp_color_management_surface);
 		return;
 	}
@@ -5361,6 +5376,18 @@ void WaylandThread::window_set_color_profile(DisplayServerEnums::WindowID p_wind
 	struct wp_image_description_creator_params_v1 *builder = wp_color_manager_v1_create_parametric_creator(registry.wp_color_manager);
 	wp_image_description_creator_params_v1_set_primaries_named(builder, p_profile.named_primary);
 	wp_image_description_creator_params_v1_set_tf_named(builder, p_profile.named_transfer_function);
+
+	// Although Wayland color management needs an image description that describes a real-world screen,
+	// Godot is designed to work with the Extended Dynamic Range (EDR) paradigm where the reference
+	// and maximum luminance dynamically change, so we use the reference and maximum luminance
+	// provided by Wayland for the current screen instead of unchanging luminance values.
+	// Godot games are often authored on an SDR computer screen and provide an optional HDR mode to
+	// players, so it is not possible to provide a real-world minimum luminance for HDR mode.
+	// To work around this we target a hypothetical HDR screen that matches HDR standards just as Godot
+	// does on other platforms, so that a relative luminance of 0.0 in Godot results in an HDR
+	// signal code value of 0. It seems the best way to get this behavior with Wayland is to match our
+	// minimum luminance to the screen's minimum luminance that is provided by Wayland and use a
+	// perceptual rendering intent.
 
 	if ((cms->supported_render_feature & WP_COLOR_MANAGER_V1_FEATURE_SET_LUMINANCES) > 0) {
 		uint32_t min_luminance = static_cast<uint32_t>(p_profile.target_min_luminance * 10000);
