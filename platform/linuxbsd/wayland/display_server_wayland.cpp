@@ -1567,7 +1567,7 @@ void DisplayServerWayland::_window_update_hdr_state(WindowData &p_window) {
 			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR;
 		} else {
 			p_window.color_profile.named_primary = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB;
-			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22;
+			p_window.color_profile.named_transfer_function = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB;
 		}
 
 		if (p_window.visible) {
